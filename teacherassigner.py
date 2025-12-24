@@ -42,7 +42,7 @@ if 'class_subjects' not in st.session_state:
     }
 
 # ==========================================
-# 2. FIXED CSS (VISIBILITY CORRECTIONS)
+# 2. CSS STYLING
 # ==========================================
 st.markdown("""
 <style>
@@ -64,55 +64,47 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
 
-    /* 3. Text Visibility - Headers & Labels */
+    /* 3. Text Colors */
     h1, h2, h3, h4 { color: #ffffff !important; font-weight: 800 !important; }
     p, label, span, div[data-testid="stMarkdownContainer"] p { 
         color: #ffffff !important; 
     }
 
-    /* 4. FIX FOR TABS (Selected Tab = White BG + BLACK Text) */
+    /* 4. TAB STYLING (FIXED) */
+    /* Unselected Tabs */
     button[data-baseweb="tab"] {
-        color: #cccccc !important; /* Unselected tabs are light grey */
+        color: #cccccc !important; 
         background-color: transparent !important;
     }
+    /* Selected Tab - Force BLACK Text */
     button[data-baseweb="tab"][aria-selected="true"] {
         background-color: #ffffff !important;
-        color: #000000 !important; /* Force BLACK text on selected */
-        font-weight: 900 !important;
-        border-radius: 8px;
     }
-    /* Fix text inside the tab */
-    button[data-baseweb="tab"][aria-selected="true"] div {
+    button[data-baseweb="tab"][aria-selected="true"] > div {
         color: #000000 !important;
+        font-weight: 900 !important;
     }
 
-    /* 5. FIX FOR INPUTS & DROPDOWNS (White Box + BLACK Text) */
+    /* 5. Inputs & Dropdowns */
     .stTextInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #000000 !important;
         border-radius: 5px;
     }
-
-    /* Specific Fix for SelectBox / Dropdown Text */
     .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
     .stSelectbox div[data-baseweb="select"] div {
         color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important; /* Webkit Override */
+        -webkit-text-fill-color: #000000 !important; 
     }
-    
-    /* Fix the Pop-up Menu Options */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
         background-color: #ffffff !important;
     }
     li[data-baseweb="option"] {
         color: #000000 !important;
         background-color: #ffffff !important;
-    }
-    div[role="option"] {
-        color: #000000 !important;
     }
 
     /* 6. Buttons */
@@ -126,6 +118,13 @@ st.markdown("""
     .stButton button:hover {
         transform: scale(1.02);
         box-shadow: 0 0 15px rgba(0, 201, 255, 0.7);
+    }
+    
+    /* 7. DataFrame/Table styling */
+    div[data-testid="stDataFrame"] {
+        background-color: rgba(255,255,255, 0.9);
+        padding: 10px;
+        border-radius: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -201,14 +200,33 @@ with tabs[0]:
 
     with col2:
         st.markdown("<div class='glass-container'><h3>Teacher Directory</h3>", unsafe_allow_html=True)
+        
         if st.session_state.teachers:
-            for idx, t in enumerate(st.session_state.teachers):
-                with st.expander(f"👤 {t['name']}"):
-                    st.write(f"**Subjects:** {', '.join(t['subjects'])}")
-                    st.write(f"**Classes:** {', '.join(t['classes'])}")
-                    if st.button("Delete", key=f"del_{idx}"):
-                        st.session_state.teachers.pop(idx)
-                        st.rerun()
+            # PREPARE DATA FOR TABLE
+            table_data = []
+            for t in st.session_state.teachers:
+                table_data.append({
+                    "Name": t['name'],
+                    "Subjects": ", ".join(t['subjects']), # Convert list to string
+                    "Classes": ", ".join(t['classes'])    # Convert list to string
+                })
+            
+            df_teachers = pd.DataFrame(table_data)
+            st.dataframe(df_teachers, use_container_width=True, hide_index=True)
+            
+            # REMOVE TEACHER SECTION
+            st.markdown("#### Remove Teacher")
+            c1, c2 = st.columns([3, 1])
+            with c1:
+                t_to_del = st.selectbox("Select Teacher to Remove", [t['name'] for t in st.session_state.teachers], label_visibility="collapsed")
+            with c2:
+                if st.button("Delete"):
+                    # Find index and remove
+                    for i, t in enumerate(st.session_state.teachers):
+                        if t['name'] == t_to_del:
+                            st.session_state.teachers.pop(i)
+                            st.rerun()
+                            break
         else:
             st.info("No teachers added yet.")
         st.markdown("</div>", unsafe_allow_html=True)
