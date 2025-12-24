@@ -10,6 +10,7 @@ st.set_page_config(page_title="Exam Manager", layout="wide")
 
 # --- DATA SAFETY CHECK ---
 if 'teachers' in st.session_state and st.session_state.teachers:
+    # If old data format exists, clear it to prevent errors
     if 'classes' not in st.session_state.teachers[0]: 
         st.session_state.teachers = []
         st.session_state.timetable = []
@@ -42,7 +43,7 @@ if 'class_subjects' not in st.session_state:
     }
 
 # ==========================================
-# 2. CSS STYLING
+# 2. CSS STYLING (FIXED VISIBILITY)
 # ==========================================
 st.markdown("""
 <style>
@@ -54,9 +55,9 @@ st.markdown("""
 
     /* 2. Glass Container */
     .glass-container {
-        background: rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 15px;
         padding: 20px;
@@ -64,47 +65,64 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
 
-    /* 3. Text Colors */
+    /* 3. Text Colors (Global) */
     h1, h2, h3, h4 { color: #ffffff !important; font-weight: 800 !important; }
     p, label, span, div[data-testid="stMarkdownContainer"] p { 
         color: #ffffff !important; 
     }
 
-    /* 4. TAB STYLING (FIXED) */
-    /* Unselected Tabs */
+    /* 4. TAB STYLING (CRITICAL FIX) */
+    /* Unselected Tabs: White Text */
     button[data-baseweb="tab"] {
-        color: #cccccc !important; 
+        color: #ffffff !important; 
         background-color: transparent !important;
+        font-weight: 600 !important;
     }
-    /* Selected Tab - Force BLACK Text */
+    /* Selected Tab: White BG + BLACK Text */
     button[data-baseweb="tab"][aria-selected="true"] {
         background-color: #ffffff !important;
+        border-radius: 8px;
     }
-    button[data-baseweb="tab"][aria-selected="true"] > div {
+    /* Force text inside selected tab to be Black */
+    button[data-baseweb="tab"][aria-selected="true"] > div,
+    button[data-baseweb="tab"][aria-selected="true"] p {
         color: #000000 !important;
         font-weight: 900 !important;
     }
 
-    /* 5. Inputs & Dropdowns */
+    /* 5. Inputs & Dropdowns (High Contrast) */
+    /* Input Boxes: White Background, Black Text */
     .stTextInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #000000 !important;
         border-radius: 5px;
     }
+    
+    /* SelectBox (Dropdown) - The Box itself */
     .stSelectbox div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
+    /* Text inside the SelectBox */
     .stSelectbox div[data-baseweb="select"] div {
         color: #000000 !important;
         -webkit-text-fill-color: #000000 !important; 
     }
+    
+    /* The Dropdown Menu (Pop-up options) */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
         background-color: #ffffff !important;
+        color: #000000 !important;
     }
+    /* Individual Options */
     li[data-baseweb="option"] {
         color: #000000 !important;
         background-color: #ffffff !important;
+    }
+    /* Highlighted Option */
+    li[data-baseweb="option"]:hover, li[data-baseweb="option"][aria-selected="true"] {
+        background-color: #f0f0f0 !important;
+        font-weight: bold;
     }
 
     /* 6. Buttons */
@@ -120,11 +138,12 @@ st.markdown("""
         box-shadow: 0 0 15px rgba(0, 201, 255, 0.7);
     }
     
-    /* 7. DataFrame/Table styling */
+    /* 7. Tables */
     div[data-testid="stDataFrame"] {
-        background-color: rgba(255,255,255, 0.9);
+        background-color: rgba(255,255,255, 0.95);
         padding: 10px;
         border-radius: 10px;
+        color: black !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -153,7 +172,7 @@ def find_teachers(subject, target_class, role_type):
                 result.append(t['name'])
         
         elif role_type == "invigilator":
-            # Must NOT teach this subject (general rule)
+            # Must NOT teach this subject
             if not teaches_subject: 
                 result.append(t['name'])
     return result
@@ -202,26 +221,25 @@ with tabs[0]:
         st.markdown("<div class='glass-container'><h3>Teacher Directory</h3>", unsafe_allow_html=True)
         
         if st.session_state.teachers:
-            # PREPARE DATA FOR TABLE
+            # Display as Table
             table_data = []
             for t in st.session_state.teachers:
                 table_data.append({
                     "Name": t['name'],
-                    "Subjects": ", ".join(t['subjects']), # Convert list to string
-                    "Classes": ", ".join(t['classes'])    # Convert list to string
+                    "Subjects": ", ".join(t['subjects']),
+                    "Classes": ", ".join(t['classes'])
                 })
             
             df_teachers = pd.DataFrame(table_data)
             st.dataframe(df_teachers, use_container_width=True, hide_index=True)
             
-            # REMOVE TEACHER SECTION
+            # Delete Section
             st.markdown("#### Remove Teacher")
             c1, c2 = st.columns([3, 1])
             with c1:
-                t_to_del = st.selectbox("Select Teacher to Remove", [t['name'] for t in st.session_state.teachers], label_visibility="collapsed")
+                t_to_del = st.selectbox("Select Teacher", [t['name'] for t in st.session_state.teachers], label_visibility="collapsed")
             with c2:
                 if st.button("Delete"):
-                    # Find index and remove
                     for i, t in enumerate(st.session_state.teachers):
                         if t['name'] == t_to_del:
                             st.session_state.teachers.pop(i)
@@ -292,6 +310,7 @@ with tabs[3]:
     for exam in st.session_state.timetable:
         eid = exam['id']
         
+        # Init allocation if missing
         if eid not in st.session_state.allocations:
             rev_pool = find_teachers(exam['subject'], exam['class'], "revision")
             inv_pool = find_teachers(exam['subject'], exam['class'], "invigilator")
@@ -307,12 +326,18 @@ with tabs[3]:
         with st.expander(f"{exam['date']} | {exam['class']} | {exam['subject']}", expanded=True):
             r_col, i_col = st.columns(2)
             
-            # REVISION
+            # --- REVISION LOGIC ---
             with r_col:
                 st.markdown(f"#### 📖 Revision ({exam['rev_p']})")
+                
+                # IF ASSIGNED -> SHOW UNASSIGN BUTTON
                 if data['confirmed_rev']:
-                    st.success(f"Assigned: **{data['confirmed_rev']}**")
+                    st.success(f"✅ Assigned: **{data['confirmed_rev']}**")
+                    if st.button("🔄 Unassign", key=f"unassign_rev_{eid}"):
+                        data['confirmed_rev'] = None
+                        st.rerun()
                 else:
+                    # IF NOT ASSIGNED -> SHOW ASSIGNMENT UI
                     pool = data['rev_pool']
                     idx = data['rev_idx']
                     if not pool:
@@ -338,12 +363,18 @@ with tabs[3]:
                             data['confirmed_rev'] = candidate
                             st.rerun()
 
-            # INVIGILATION
+            # --- INVIGILATION LOGIC ---
             with i_col:
                 st.markdown(f"#### 📝 Exam ({exam['exam_p']})")
+                
+                # IF ASSIGNED -> SHOW UNASSIGN BUTTON
                 if data['confirmed_inv']:
-                    st.success(f"Assigned: **{data['confirmed_inv']}**")
+                    st.success(f"✅ Assigned: **{data['confirmed_inv']}**")
+                    if st.button("🔄 Unassign", key=f"unassign_inv_{eid}"):
+                        data['confirmed_inv'] = None
+                        st.rerun()
                 else:
+                    # IF NOT ASSIGNED -> SHOW ASSIGNMENT UI
                     pool = data['inv_pool']
                     idx = data['inv_idx']
                     if idx < len(pool):
@@ -363,7 +394,7 @@ with tabs[3]:
                             data['confirmed_inv'] = candidate
                             st.rerun()
 
-# --- TAB 5: FINAL MATRIX ---
+# --- TAB 5: FINAL TIMETABLE ---
 with tabs[4]:
     st.markdown("<div class='glass-container'><h3>🗓️ Final Timetable</h3></div>", unsafe_allow_html=True)
     if st.session_state.timetable:
@@ -399,7 +430,17 @@ with tabs[5]:
             if alloc.get('confirmed_inv') in stats: stats[alloc['confirmed_inv']] += 1
             if alloc.get('confirmed_rev') in stats: stats[alloc['confirmed_rev']] += 1
             
-        df_stats = pd.DataFrame(list(stats.items()), columns=["Teacher", "Duties"])
-        st.bar_chart(df_stats.set_index("Teacher"))
+        df_stats = pd.DataFrame(list(stats.items()), columns=["Teacher Name", "Total Duties"])
+        df_stats = df_stats.sort_values(by="Total Duties", ascending=False)
+        
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.markdown("#### Duties Table")
+            st.dataframe(df_stats, use_container_width=True, hide_index=True)
+            
+        with col2:
+            st.markdown("#### Duties Graph")
+            st.bar_chart(df_stats.set_index("Teacher Name"))
     else:
         st.warning("Add teachers first.")
