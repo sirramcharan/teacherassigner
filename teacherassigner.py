@@ -42,7 +42,7 @@ if 'class_subjects' not in st.session_state:
     }
 
 # ==========================================
-# 2. SLEEK GLASSMORPHISM CSS
+# 2. SLEEK GLASSMORPHISM CSS (FIXED VISIBILITY)
 # ==========================================
 st.markdown("""
 <style>
@@ -52,66 +52,64 @@ st.markdown("""
         font-family: 'Helvetica Neue', sans-serif;
     }
 
-    /* 2. The Glass Card Container */
+    /* 2. Glass Card Container */
     .glass-container {
-        background: rgba(255, 255, 255, 0.85); /* High opacity for readability */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
+        background: rgba(255, 255, 255, 0.9); /* Higher opacity for contrast */
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.4);
+        border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
         padding: 24px;
         margin-bottom: 24px;
-        color: #2c3e50;
+        color: #1f2937;
     }
 
-    /* 3. Titles */
-    h1 { color: white !important; font-weight: 700; text-shadow: 0px 4px 12px rgba(0,0,0,0.5); }
-    h3 { color: #2c3e50 !important; font-weight: 600; margin-bottom: 1rem; }
-    p, label, span, div { color: #333333; }
+    /* 3. Typography */
+    h1 { color: white !important; font-weight: 800; text-shadow: 0px 4px 10px rgba(0,0,0,0.3); }
+    h3 { color: #1f2937 !important; font-weight: 700; margin-bottom: 1rem; }
+    p, label, span, div { color: #374151; }
 
-    /* 4. Sleek Input Fields */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] div, .stDateInput input, .stMultiSelect div {
-        background-color: #f0f2f6 !important;
-        border-radius: 8px !important;
+    /* 4. Input Fields (The Box Itself) */
+    .stTextInput input, .stSelectbox div[data-baseweb="select"] div, .stDateInput input {
+        background-color: #ffffff !important;
         border: 1px solid #d1d5db !important;
-        color: #111827 !important;
-        font-weight: 500;
+        color: #000000 !important;
+        border-radius: 8px !important;
     }
     
-    /* 5. Custom Tabs Styling (Removing the red line) */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: rgba(255,255,255,0.1);
-        padding: 10px;
-        border-radius: 12px;
+    /* 5. FIX FOR DROPDOWN MENUS (The Pop-up List) */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+        color: #000000 !important;
     }
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
-        border-radius: 8px;
-        color: #e2e8f0; /* Light gray text for unselected */
-        font-weight: 600;
-        padding: 8px 16px;
+    li[data-baseweb="option"] {
+        color: #000000 !important;
     }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background-color: rgba(255, 255, 255, 0.95);
-        color: #455682; /* Dark blue text for selected */
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    /* Ensure text inside select box is visible */
+    div[data-baseweb="select"] span {
+        color: #000000 !important;
+    }
+    
+    /* 6. MultiSelect Tags */
+    span[data-baseweb="tag"] {
+        background-color: #e5e7eb !important;
+        color: #000000 !important;
     }
 
-    /* 6. Buttons */
+    /* 7. Buttons */
     .stButton button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
         color: white !important;
         border: none !important;
-        border-radius: 8px !important;
         padding: 0.6rem 1.2rem !important;
         font-weight: 600 !important;
-        transition: transform 0.2s;
+        border-radius: 8px !important;
+        transition: all 0.2s;
     }
     .stButton button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(118, 75, 162, 0.4);
+        box-shadow: 0 4px 12px rgba(118, 75, 162, 0.5);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -160,7 +158,6 @@ def convert_df_to_excel(df):
 
 st.title("🏫 Exam & Invigilation Manager")
 
-# Styled Tabs
 tabs = st.tabs(["Teachers", "Subjects", "Schedule", "Allocation", "Timetable", "Stats"])
 
 # --- TAB 1: TEACHERS ---
@@ -169,7 +166,6 @@ with tabs[0]:
     
     with col1:
         st.markdown("<div class='glass-container'><h3>Add New Teacher</h3>", unsafe_allow_html=True)
-        # Using Form to auto-clear inputs
         with st.form("add_teacher_form", clear_on_submit=True):
             t_name = st.text_input("Full Name")
             t_subs = st.multiselect("Subjects Taught", get_all_subjects())
@@ -218,11 +214,9 @@ with tabs[1]:
                     st.warning("Subject already exists.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TAB 3: SCHEDULE (FIXED: DYNAMIC DROPDOWN) ---
+# --- TAB 3: SCHEDULE ---
 with tabs[2]:
     st.markdown("<div class='glass-container'><h3>Create Exam Schedule</h3>", unsafe_allow_html=True)
-    
-    # ⚠️ NO ST.FORM HERE: This allows the Subject dropdown to update instantly
     
     c1, c2 = st.columns(2)
     with c1:
@@ -230,7 +224,6 @@ with tabs[2]:
         exam_class = st.selectbox("Select Class", get_all_classes(), key="tt_class_selector")
     
     with c2:
-        # Dynamic Subject List based on selected class
         available_subjects = st.session_state.class_subjects.get(exam_class, [])
         exam_subject = st.selectbox("Select Subject", available_subjects, key="tt_sub_selector")
         exam_slot = st.selectbox("Time Slot", ["Morning (Exam: 3rd-4th)", "Afternoon (Exam: 7th-8th)"])
