@@ -42,74 +42,85 @@ if 'class_subjects' not in st.session_state:
     }
 
 # ==========================================
-# 2. SLEEK GLASSMORPHISM CSS (FIXED VISIBILITY)
+# 2. DARK MODE + SUPER WHITE TEXT CSS
 # ==========================================
 st.markdown("""
 <style>
-    /* 1. Background */
+    /* 1. Main Background - Deep Dark Blue Gradient */
     .stApp {
-        background: radial-gradient(circle at 10% 20%, rgb(69, 86, 130) 0%, rgb(45, 53, 94) 90%);
-        font-family: 'Helvetica Neue', sans-serif;
+        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    /* 2. Glass Card Container */
+    /* 2. Glass Container - Dark & Transparent */
     .glass-container {
-        background: rgba(255, 255, 255, 0.9); /* Higher opacity for contrast */
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: rgba(0, 0, 0, 0.6); /* Dark background */
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
         padding: 24px;
         margin-bottom: 24px;
-        color: #1f2937;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
     }
 
-    /* 3. Typography */
-    h1 { color: white !important; font-weight: 800; text-shadow: 0px 4px 10px rgba(0,0,0,0.3); }
-    h3 { color: #1f2937 !important; font-weight: 700; margin-bottom: 1rem; }
-    p, label, span, div { color: #374151; }
-
-    /* 4. Input Fields (The Box Itself) */
+    /* 3. SUPER WHITE TEXT for Headlines & Labels */
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+        font-weight: 800 !important; /* Extra Bold */
+        text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
+    }
+    
+    p, label, span, div[data-testid="stMarkdownContainer"] p {
+        color: #ffffff !important;
+        font-weight: 600 !important; /* Semi-Bold */
+    }
+    
+    /* 4. Input Fields & Dropdowns - High Contrast (White Box, Black Text) */
     .stTextInput input, .stSelectbox div[data-baseweb="select"] div, .stDateInput input {
         background-color: #ffffff !important;
-        border: 1px solid #d1d5db !important;
         color: #000000 !important;
         border-radius: 8px !important;
+        font-weight: bold !important;
+        border: 2px solid rgba(255,255,255,0.5) !important;
     }
     
-    /* 5. FIX FOR DROPDOWN MENUS (The Pop-up List) */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
+    /* Fix Dropdown Menu Items (Pop-up list) */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], li[data-baseweb="option"] {
         background-color: #ffffff !important;
         color: #000000 !important;
-    }
-    li[data-baseweb="option"] {
-        color: #000000 !important;
-    }
-    /* Ensure text inside select box is visible */
-    div[data-baseweb="select"] span {
-        color: #000000 !important;
+        font-weight: bold !important;
     }
     
-    /* 6. MultiSelect Tags */
-    span[data-baseweb="tag"] {
-        background-color: #e5e7eb !important;
-        color: #000000 !important;
+    /* 5. Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: rgba(0,0,0,0.3);
+        padding: 10px;
+        border-radius: 12px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        color: #cccccc !important; /* Grey when inactive */
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        background-color: #ffffff !important;
+        color: #000000 !important; /* Black text on selected tab */
+        font-weight: 900 !important;
+        border-radius: 8px;
     }
 
-    /* 7. Buttons */
+    /* 6. Buttons - Neon Pop */
     .stButton button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%) !important;
         color: white !important;
+        font-weight: bold !important;
         border: none !important;
         padding: 0.6rem 1.2rem !important;
-        font-weight: 600 !important;
         border-radius: 8px !important;
-        transition: all 0.2s;
+        box-shadow: 0px 4px 15px rgba(0, 210, 255, 0.4);
     }
     .stButton button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(118, 75, 162, 0.5);
+        transform: scale(1.02);
+        box-shadow: 0px 6px 20px rgba(0, 210, 255, 0.6);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -156,7 +167,7 @@ def convert_df_to_excel(df):
 # 4. APP LAYOUT
 # ==========================================
 
-st.title("🏫 Exam & Invigilation Manager")
+st.markdown("<h1>🏫 Exam & Invigilation Manager</h1>", unsafe_allow_html=True)
 
 tabs = st.tabs(["Teachers", "Subjects", "Schedule", "Allocation", "Timetable", "Stats"])
 
