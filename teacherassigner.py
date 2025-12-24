@@ -42,85 +42,90 @@ if 'class_subjects' not in st.session_state:
     }
 
 # ==========================================
-# 2. DARK MODE + SUPER WHITE TEXT CSS
+# 2. FIXED CSS (VISIBILITY CORRECTIONS)
 # ==========================================
 st.markdown("""
 <style>
-    /* 1. Main Background - Deep Dark Blue Gradient */
+    /* 1. Main Background */
     .stApp {
         background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        font-family: 'Segoe UI', sans-serif;
     }
 
-    /* 2. Glass Container - Dark & Transparent */
+    /* 2. Glass Container */
     .glass-container {
-        background: rgba(0, 0, 0, 0.6); /* Dark background */
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 16px;
-        padding: 24px;
-        margin-bottom: 24px;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
 
-    /* 3. SUPER WHITE TEXT for Headlines & Labels */
-    h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
-        font-weight: 800 !important; /* Extra Bold */
-        text-shadow: 0px 2px 4px rgba(0,0,0,0.8);
+    /* 3. Text Visibility - Headers & Labels */
+    h1, h2, h3, h4 { color: #ffffff !important; font-weight: 800 !important; }
+    p, label, span, div[data-testid="stMarkdownContainer"] p { 
+        color: #ffffff !important; 
     }
-    
-    p, label, span, div[data-testid="stMarkdownContainer"] p {
-        color: #ffffff !important;
-        font-weight: 600 !important; /* Semi-Bold */
+
+    /* 4. FIX FOR TABS (Selected Tab = White BG + BLACK Text) */
+    button[data-baseweb="tab"] {
+        color: #cccccc !important; /* Unselected tabs are light grey */
+        background-color: transparent !important;
     }
-    
-    /* 4. Input Fields & Dropdowns - High Contrast (White Box, Black Text) */
-    .stTextInput input, .stSelectbox div[data-baseweb="select"] div, .stDateInput input {
+    button[data-baseweb="tab"][aria-selected="true"] {
         background-color: #ffffff !important;
-        color: #000000 !important;
-        border-radius: 8px !important;
-        font-weight: bold !important;
-        border: 2px solid rgba(255,255,255,0.5) !important;
-    }
-    
-    /* Fix Dropdown Menu Items (Pop-up list) */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], li[data-baseweb="option"] {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        font-weight: bold !important;
-    }
-    
-    /* 5. Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: rgba(0,0,0,0.3);
-        padding: 10px;
-        border-radius: 12px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: #cccccc !important; /* Grey when inactive */
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background-color: #ffffff !important;
-        color: #000000 !important; /* Black text on selected tab */
+        color: #000000 !important; /* Force BLACK text on selected */
         font-weight: 900 !important;
         border-radius: 8px;
     }
+    /* Fix text inside the tab */
+    button[data-baseweb="tab"][aria-selected="true"] div {
+        color: #000000 !important;
+    }
 
-    /* 6. Buttons - Neon Pop */
+    /* 5. FIX FOR INPUTS & DROPDOWNS (White Box + BLACK Text) */
+    .stTextInput input, .stDateInput input {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border-radius: 5px;
+    }
+
+    /* Specific Fix for SelectBox / Dropdown Text */
+    .stSelectbox div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    .stSelectbox div[data-baseweb="select"] div {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important; /* Webkit Override */
+    }
+    
+    /* Fix the Pop-up Menu Options */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+    }
+    li[data-baseweb="option"] {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+    }
+    div[role="option"] {
+        color: #000000 !important;
+    }
+
+    /* 6. Buttons */
     .stButton button {
-        background: linear-gradient(90deg, #00d2ff 0%, #3a7bd5 100%) !important;
-        color: white !important;
+        background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%) !important;
+        color: #000000 !important;
         font-weight: bold !important;
         border: none !important;
-        padding: 0.6rem 1.2rem !important;
-        border-radius: 8px !important;
-        box-shadow: 0px 4px 15px rgba(0, 210, 255, 0.4);
+        border-radius: 8px;
     }
     .stButton button:hover {
         transform: scale(1.02);
-        box-shadow: 0px 6px 20px rgba(0, 210, 255, 0.6);
+        box-shadow: 0 0 15px rgba(0, 201, 255, 0.7);
     }
 </style>
 """, unsafe_allow_html=True)
