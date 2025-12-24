@@ -7,9 +7,20 @@ import random
 # ==========================================
 st.set_page_config(page_title="School Exam Manager", layout="wide")
 
+# --- AUTO-FIX FOR DATA FORMAT ---
+# This block checks if your browser is holding onto old data formats
+# and clears them to prevent the KeyError.
+if 'timetable' in st.session_state and st.session_state.timetable:
+    # Check if the first entry is missing the new key 'rev_p'
+    if 'rev_p' not in st.session_state.timetable[0]:
+        st.session_state.timetable = []
+        st.session_state.allocations = {}
+        st.toast("⚠️ System updated: Old data format cleared.", icon="🔄")
+# --------------------------------
+
 # Initialize Session State
 if 'teachers' not in st.session_state:
-    st.session_state.teachers = []  # Start empty
+    st.session_state.teachers = [] 
 
 if 'timetable' not in st.session_state:
     st.session_state.timetable = []
@@ -57,13 +68,18 @@ st.markdown("""
         margin-bottom: 20px;
         color: white;
     }
-    h1, h2, h3, h4, p, label, .stMarkdown {
+    h1, h2, h3, h4, p, label, span {
         color: white !important;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
     }
     .stDataFrame {
         background-color: rgba(255, 255, 255, 0.9);
         border-radius: 10px;
         padding: 10px;
+    }
+    /* Fix for tabs text color */
+    button[data-baseweb="tab"] {
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -98,7 +114,7 @@ def get_all_teacher_names():
 st.markdown("<div class='glass-container'><h1>🏫 Exam Manager</h1></div>", unsafe_allow_html=True)
 
 # Tabs
-tabs = st.tabs(["👨‍🏫 Teachers", "📚 Subjects", "📅 Schedule", "✅ Allocate", "🗓️ Final Timetable", "📊 Stats"])
+tabs = st.tabs(["👨‍🏫 Teachers", "📚 Subjects", "📅 Schedule", "✅ Allocate", "🗓️ Final Matrix", "📊 Stats"])
 
 # --- TAB 1: TEACHERS (Add/Delete) ---
 with tabs[0]:
@@ -165,6 +181,11 @@ with tabs[2]:
         })
         st.success("Scheduled!")
     st.markdown("</div>", unsafe_allow_html=True)
+    
+    if st.button("Reset All Data (Clear Cache)"):
+        st.session_state.timetable = []
+        st.session_state.allocations = {}
+        st.rerun()
 
 # --- TAB 4: ALLOCATE ---
 with tabs[3]:
@@ -256,40 +277,36 @@ with tabs[4]:
     st.markdown("<div class='glass-container'><h3>🗓️ Final Timetable Matrix</h3></div>", unsafe_allow_html=True)
     
     if st.session_state.timetable:
-        # Prepare Data for Matrix
         matrix_data = []
         for exam in st.session_state.timetable:
             eid = exam['id']
             alloc = st.session_state.allocations.get(eid, {})
-            rev_teacher = alloc.get('confirmed_rev', 'Pending')
-            inv_teacher = alloc.get('confirmed_inv', 'Pending')
             
-            # Determine column placement based on slot
+            # Get names or status
+            rev_teacher = alloc.get('confirmed_rev', '❓ Pending')
+            inv_teacher = alloc.get('confirmed_inv', '❓ Pending')
+            
+            # Build Row
             row = {
                 "Date": exam['date'],
-                "Class": exam['class'],
-                "Subject": exam['subject'],
-                "1st-2nd": "",
-                "3rd-4th": "",
-                "5th-6th": "",
-                "7th-8th": ""
+                "Class": exam['class'] + f" ({exam['subject']})",
+                "1st-2nd": "---",
+                "3rd-4th": "---",
+                "5th-6th": "---",
+                "7th-8th": "---"
             }
             
             if "Morning" in exam['slot']:
-                row["1st-2nd"] = f"{rev_teacher} (Rev)"
-                row["3rd-4th"] = f"{inv_teacher} (Inv)"
+                row["1st-2nd"] = f"Rev: {rev_teacher}"
+                row["3rd-4th"] = f"Inv: {inv_teacher}"
             else:
-                row["5th-6th"] = f"{rev_teacher} (Rev)"
-                row["7th-8th"] = f"{inv_teacher} (Inv)"
+                row["5th-6th"] = f"Rev: {rev_teacher}"
+                row["7th-8th"] = f"Inv: {inv_teacher}"
             
             matrix_data.append(row)
         
         df_matrix = pd.DataFrame(matrix_data)
-        # Group by Date and Class? Or just show the raw table. 
-        # User asked for [period numbers x date].
-        # Since multiple classes have exams on the same date, we include Class in the row identifier.
-        
-        st.dataframe(df_matrix.set_index(["Date", "Class"]), use_container_width=True)
+        st.dataframe(df_matrix, use_container_width=True, hide_index=True)
     else:
         st.info("No data available.")
 
@@ -297,16 +314,25 @@ with tabs[4]:
 with tabs[5]:
     st.markdown("<div class='glass-container'><h3>📊 Teacher Workload</h3></div>", unsafe_allow_html=True)
     
-    stats = {}
-    for t in get_all_teacher_names():
-        stats[t] = 0
-        
-    for alloc in st.session_state.allocations.values():
-        inv = alloc.get('confirmed_inv')
-        if inv and inv in stats:
-            stats[inv] += 1
+    if st.session_state.teachers:
+        stats = {}
+        all_teachers = get_all_teacher_names()
+        for t in all_teachers:
+            stats[t] = 0
             
-    stats_df = pd.DataFrame(list(stats.items()), columns=["Teacher Name", "Invigilations Count"])
-    stats_df = stats_df.sort_values(by="Invigilations Count", ascending=False)
-    
-    st.dataframe(stats_df, use_container_width=True)
+        for alloc in st.session_state.allocations.values():
+            # Count Invigilation
+            inv = alloc.get('confirmed_inv')
+            if inv and inv in stats:
+                stats[inv] += 1
+            # Count Revision (Optional - remove if not needed)
+            rev = alloc.get('confirmed_rev')
+            if rev and rev in stats:
+                stats[rev] += 1
+                
+        stats_df = pd.DataFrame(list(stats.items()), columns=["Teacher Name", "Total Duties Assigned"])
+        stats_df = stats_df.sort_values(by="Total Duties Assigned", ascending=False)
+        
+        st.dataframe(stats_df, use_container_width=True, hide_index=True)
+    else:
+        st.warning("Add teachers first.")
