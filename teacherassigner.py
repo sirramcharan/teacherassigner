@@ -200,7 +200,7 @@ with st.sidebar:
 # 5. MAIN APP
 # ==========================================
 
-st.markdown("<h1>🏫 SEHS Exam Manager</h1>", unsafe_allow_html=True)
+st.markdown("<h1>🏫 Exam Manager</h1>", unsafe_allow_html=True)
 
 tabs = st.tabs(["Teachers", "Subjects", "Schedule", "Allocation", "Timetable", "Stats"])
 
