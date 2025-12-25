@@ -2,21 +2,14 @@ import streamlit as st
 import pandas as pd
 import random
 import io
+import json
 
 # ==========================================
 # 1. CONFIGURATION & STATE
 # ==========================================
 st.set_page_config(page_title="Exam Manager", layout="wide")
 
-# --- DATA SAFETY CHECK ---
-if 'teachers' in st.session_state and st.session_state.teachers:
-    # If old data format exists, clear it to prevent errors
-    if 'classes' not in st.session_state.teachers[0]: 
-        st.session_state.teachers = []
-        st.session_state.timetable = []
-        st.session_state.allocations = {}
-
-# Initialize Session State
+# --- INITIALIZE SESSION STATE ---
 if 'teachers' not in st.session_state: st.session_state.teachers = [] 
 if 'timetable' not in st.session_state: st.session_state.timetable = []
 if 'allocations' not in st.session_state: st.session_state.allocations = {} 
@@ -43,7 +36,7 @@ if 'class_subjects' not in st.session_state:
     }
 
 # ==========================================
-# 2. CSS STYLING (FIXED VISIBILITY)
+# 2. CSS STYLING
 # ==========================================
 st.markdown("""
 <style>
@@ -65,67 +58,53 @@ st.markdown("""
         box-shadow: 0 4px 6px rgba(0,0,0,0.3);
     }
 
-    /* 3. Text Colors (Global) */
+    /* 3. Text Colors */
     h1, h2, h3, h4 { color: #ffffff !important; font-weight: 800 !important; }
     p, label, span, div[data-testid="stMarkdownContainer"] p { 
         color: #ffffff !important; 
     }
 
-    /* 4. TAB STYLING (CRITICAL FIX) */
-    /* Unselected Tabs: White Text */
+    /* 4. TABS */
     button[data-baseweb="tab"] {
         color: #ffffff !important; 
         background-color: transparent !important;
         font-weight: 600 !important;
     }
-    /* Selected Tab: White BG + BLACK Text */
     button[data-baseweb="tab"][aria-selected="true"] {
         background-color: #ffffff !important;
         border-radius: 8px;
     }
-    /* Force text inside selected tab to be Black */
     button[data-baseweb="tab"][aria-selected="true"] > div,
     button[data-baseweb="tab"][aria-selected="true"] p {
         color: #000000 !important;
         font-weight: 900 !important;
     }
 
-    /* 5. Inputs & Dropdowns (High Contrast) */
-    /* Input Boxes: White Background, Black Text */
+    /* 5. INPUTS & DROPDOWNS (High Contrast) */
     .stTextInput input, .stDateInput input {
         background-color: #ffffff !important;
         color: #000000 !important;
         border-radius: 5px;
     }
-    
-    /* SelectBox (Dropdown) - The Box itself */
-    .stSelectbox div[data-baseweb="select"] > div {
+    .stSelectbox div[data-baseweb="select"] > div, .stMultiSelect div[data-baseweb="select"] > div {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
-    /* Text inside the SelectBox */
-    .stSelectbox div[data-baseweb="select"] div {
+    .stSelectbox div[data-baseweb="select"] div, .stMultiSelect div[data-baseweb="select"] div {
         color: #000000 !important;
         -webkit-text-fill-color: #000000 !important; 
     }
-    
-    /* The Dropdown Menu (Pop-up options) */
+    /* Dropdown Menu */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
-    /* Individual Options */
     li[data-baseweb="option"] {
         color: #000000 !important;
         background-color: #ffffff !important;
     }
-    /* Highlighted Option */
-    li[data-baseweb="option"]:hover, li[data-baseweb="option"][aria-selected="true"] {
-        background-color: #f0f0f0 !important;
-        font-weight: bold;
-    }
 
-    /* 6. Buttons */
+    /* 6. BUTTONS */
     .stButton button {
         background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%) !important;
         color: #000000 !important;
@@ -133,12 +112,8 @@ st.markdown("""
         border: none !important;
         border-radius: 8px;
     }
-    .stButton button:hover {
-        transform: scale(1.02);
-        box-shadow: 0 0 15px rgba(0, 201, 255, 0.7);
-    }
     
-    /* 7. Tables */
+    /* 7. TABLES */
     div[data-testid="stDataFrame"] {
         background-color: rgba(255,255,255, 0.95);
         padding: 10px;
@@ -158,7 +133,8 @@ def get_all_subjects():
     return sorted(list(subjects))
 
 def get_all_classes():
-    return list(st.session_state.class_subjects.keys())
+    # Sort naturally if possible, otherwise alphabetical
+    return sorted(list(st.session_state.class_subjects.keys()))
 
 def find_teachers(subject, target_class, role_type):
     result = []
@@ -167,12 +143,9 @@ def find_teachers(subject, target_class, role_type):
         teaches_subject = subject in t['subjects']
 
         if role_type == "revision":
-            # Must teach THIS subject to THIS class
             if teaches_subject and teaches_class:
                 result.append(t['name'])
-        
         elif role_type == "invigilator":
-            # Must NOT teach this subject
             if not teaches_subject: 
                 result.append(t['name'])
     return result
@@ -187,7 +160,44 @@ def convert_df_to_excel(df):
     return output.getvalue()
 
 # ==========================================
-# 4. APP LAYOUT
+# 4. SIDEBAR: DATA BACKUP
+# ==========================================
+with st.sidebar:
+    st.header("💾 Data Backup")
+    st.info("Download your data as a JSON file to save it. Upload it later to restore everything.")
+    
+    # 1. Download
+    current_data = {
+        "teachers": st.session_state.teachers,
+        "timetable": st.session_state.timetable,
+        "allocations": st.session_state.allocations,
+        "class_subjects": st.session_state.class_subjects
+    }
+    json_str = json.dumps(current_data, indent=4)
+    st.download_button(
+        label="⬇️ Download Backup (JSON)",
+        data=json_str,
+        file_name="school_data_backup.json",
+        mime="application/json",
+    )
+    
+    # 2. Upload
+    st.markdown("---")
+    uploaded_file = st.file_uploader("⬆️ Restore Data", type=["json"])
+    if uploaded_file is not None:
+        try:
+            data = json.load(uploaded_file)
+            st.session_state.teachers = data.get("teachers", [])
+            st.session_state.timetable = data.get("timetable", [])
+            st.session_state.allocations = data.get("allocations", {})
+            st.session_state.class_subjects = data.get("class_subjects", st.session_state.class_subjects)
+            st.success("Data Restored Successfully!")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error restoring data: {e}")
+
+# ==========================================
+# 5. MAIN APP
 # ==========================================
 
 st.markdown("<h1>🏫 Exam & Invigilation Manager</h1>", unsafe_allow_html=True)
@@ -219,9 +229,7 @@ with tabs[0]:
 
     with col2:
         st.markdown("<div class='glass-container'><h3>Teacher Directory</h3>", unsafe_allow_html=True)
-        
         if st.session_state.teachers:
-            # Display as Table
             table_data = []
             for t in st.session_state.teachers:
                 table_data.append({
@@ -229,11 +237,9 @@ with tabs[0]:
                     "Subjects": ", ".join(t['subjects']),
                     "Classes": ", ".join(t['classes'])
                 })
-            
             df_teachers = pd.DataFrame(table_data)
             st.dataframe(df_teachers, use_container_width=True, hide_index=True)
             
-            # Delete Section
             st.markdown("#### Remove Teacher")
             c1, c2 = st.columns([3, 1])
             with c1:
@@ -251,25 +257,34 @@ with tabs[0]:
 
 # --- TAB 2: SUBJECTS ---
 with tabs[1]:
-    st.markdown("<div class='glass-container'><h3>Manage Class Subjects</h3>", unsafe_allow_html=True)
+    st.markdown("<div class='glass-container'><h3>Add Subject to Multiple Classes</h3>", unsafe_allow_html=True)
     
     with st.form("add_subject_form", clear_on_submit=True):
-        target_class = st.selectbox("Select Class", get_all_classes())
+        # CHANGED: Multi-select for classes
+        target_classes = st.multiselect("Select Classes", get_all_classes())
         new_subject = st.text_input("New Subject Name (e.g., Robotics)")
         
         if st.form_submit_button("Add Subject"):
-            if new_subject:
-                if new_subject not in st.session_state.class_subjects[target_class]:
-                    st.session_state.class_subjects[target_class].append(new_subject)
-                    st.success(f"Added {new_subject} to {target_class}")
+            if new_subject and target_classes:
+                added_count = 0
+                for cls in target_classes:
+                    if new_subject not in st.session_state.class_subjects[cls]:
+                        st.session_state.class_subjects[cls].append(new_subject)
+                        added_count += 1
+                
+                if added_count > 0:
+                    st.success(f"Added '{new_subject}' to {added_count} classes.")
                 else:
-                    st.warning("Subject already exists.")
+                    st.warning("Subject already exists in selected classes.")
+            else:
+                st.error("Please select classes and enter a subject name.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 # --- TAB 3: SCHEDULE ---
 with tabs[2]:
     st.markdown("<div class='glass-container'><h3>Create Exam Schedule</h3>", unsafe_allow_html=True)
     
+    # 1. ADDING EXAMS
     c1, c2 = st.columns(2)
     with c1:
         exam_date = st.date_input("Exam Date")
@@ -283,34 +298,79 @@ with tabs[2]:
     st.markdown("---")
     
     if st.button("Add Exam to Schedule"):
-        eid = f"{exam_date}_{exam_class}_{exam_slot}"
-        rev_periods = "1st-2nd" if "Morning" in exam_slot else "5th-6th"
-        exam_periods = "3rd-4th" if "Morning" in exam_slot else "7th-8th"
+        # CONFLICT CHECK
+        conflict = False
+        for ex in st.session_state.timetable:
+            if ex['date'] == str(exam_date) and ex['class'] == exam_class and ex['slot'] == exam_slot:
+                conflict = True
+                break
         
-        st.session_state.timetable.append({
-            "id": eid, "date": str(exam_date), "class": exam_class, 
-            "subject": exam_subject, "slot": exam_slot,
-            "rev_p": rev_periods, "exam_p": exam_periods
-        })
-        st.success(f"Scheduled {exam_subject} for {exam_class}!")
+        if conflict:
+            st.error(f"⚠️ Conflict! {exam_class} already has an exam on {exam_date} in the {exam_slot} slot.")
+        else:
+            eid = f"{exam_date}_{exam_class}_{exam_slot}"
+            rev_periods = "1st-2nd" if "Morning" in exam_slot else "5th-6th"
+            exam_periods = "3rd-4th" if "Morning" in exam_slot else "7th-8th"
+            
+            st.session_state.timetable.append({
+                "id": eid, "date": str(exam_date), "class": exam_class, 
+                "subject": exam_subject, "slot": exam_slot,
+                "rev_p": rev_periods, "exam_p": exam_periods
+            })
+            st.success(f"Scheduled {exam_subject} for {exam_class}!")
 
     if st.button("🗑️ Clear All Timetable Data", type="secondary"):
         st.session_state.timetable = []
         st.session_state.allocations = {}
         st.rerun()
-        
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # 2. MANAGING (EDIT/DELETE) EXAMS
+    if st.session_state.timetable:
+        st.markdown("<div class='glass-container'><h3>Manage Scheduled Exams</h3>", unsafe_allow_html=True)
+        # Sort by date for easier management
+        sorted_exams = sorted(st.session_state.timetable, key=lambda x: (x['date'], x['class']))
+        
+        for idx, ex in enumerate(sorted_exams):
+            with st.expander(f"{ex['date']} | {ex['class']} | {ex['subject']}"):
+                col_a, col_b = st.columns([3, 1])
+                
+                # Edit Section
+                with col_a:
+                    st.write("**Edit Information:**")
+                    new_sub = st.selectbox(f"Subject ({ex['id']})", st.session_state.class_subjects[ex['class']], index=st.session_state.class_subjects[ex['class']].index(ex['subject']) if ex['subject'] in st.session_state.class_subjects[ex['class']] else 0)
+                    
+                    if st.button("Update Info", key=f"upd_{ex['id']}"):
+                        # Find original index in session state to update
+                        real_idx = st.session_state.timetable.index(ex)
+                        st.session_state.timetable[real_idx]['subject'] = new_sub
+                        # Reset allocation for this exam as subject changed
+                        if ex['id'] in st.session_state.allocations:
+                            del st.session_state.allocations[ex['id']]
+                        st.success("Updated! Allocations reset for this exam.")
+                        st.rerun()
+
+                # Delete Section
+                with col_b:
+                    st.write("**Actions:**")
+                    if st.button("❌ Delete Exam", key=f"del_ex_{ex['id']}"):
+                         # Find original index in session state to delete
+                        real_idx = st.session_state.timetable.index(ex)
+                        st.session_state.timetable.pop(real_idx)
+                        if ex['id'] in st.session_state.allocations:
+                            del st.session_state.allocations[ex['id']]
+                        st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # --- TAB 4: ALLOCATE ---
 with tabs[3]:
     st.markdown("<div class='glass-container'><h3>Teacher Allocation</h3></div>", unsafe_allow_html=True)
     if not st.session_state.timetable:
-        st.info("No exams scheduled. Go to the 'Schedule' tab first.")
+        st.info("No exams scheduled.")
     
+    # Process allocations
     for exam in st.session_state.timetable:
         eid = exam['id']
-        
-        # Init allocation if missing
         if eid not in st.session_state.allocations:
             rev_pool = find_teachers(exam['subject'], exam['class'], "revision")
             inv_pool = find_teachers(exam['subject'], exam['class'], "invigilator")
@@ -326,25 +386,22 @@ with tabs[3]:
         with st.expander(f"{exam['date']} | {exam['class']} | {exam['subject']}", expanded=True):
             r_col, i_col = st.columns(2)
             
-            # --- REVISION LOGIC ---
+            # --- REVISION ---
             with r_col:
                 st.markdown(f"#### 📖 Revision ({exam['rev_p']})")
-                
-                # IF ASSIGNED -> SHOW UNASSIGN BUTTON
                 if data['confirmed_rev']:
                     st.success(f"✅ Assigned: **{data['confirmed_rev']}**")
-                    if st.button("🔄 Unassign", key=f"unassign_rev_{eid}"):
+                    if st.button("🔄 Unassign", key=f"un_r_{eid}"):
                         data['confirmed_rev'] = None
                         st.rerun()
                 else:
-                    # IF NOT ASSIGNED -> SHOW ASSIGNMENT UI
                     pool = data['rev_pool']
                     idx = data['rev_idx']
                     if not pool:
                         st.warning("No teacher found.")
-                        candidate = st.selectbox("Substitute", get_all_teacher_names(), key=f"s_r_{eid}")
+                        c = st.selectbox("Substitute", get_all_teacher_names(), key=f"s_r_{eid}")
                         if st.button("Confirm", key=f"c_s_r_{eid}"):
-                            data['confirmed_rev'] = candidate
+                            data['confirmed_rev'] = c
                             st.rerun()
                     elif idx < len(pool):
                         cand = pool[idx]
@@ -358,23 +415,20 @@ with tabs[3]:
                             st.rerun()
                     else:
                         st.error("All Unavailable.")
-                        candidate = st.selectbox("Substitute", get_all_teacher_names(), key=f"m_r_{eid}")
+                        c = st.selectbox("Manual", get_all_teacher_names(), key=f"m_r_{eid}")
                         if st.button("Confirm", key=f"m_c_r_{eid}"):
-                            data['confirmed_rev'] = candidate
+                            data['confirmed_rev'] = c
                             st.rerun()
 
-            # --- INVIGILATION LOGIC ---
+            # --- INVIGILATION ---
             with i_col:
                 st.markdown(f"#### 📝 Exam ({exam['exam_p']})")
-                
-                # IF ASSIGNED -> SHOW UNASSIGN BUTTON
                 if data['confirmed_inv']:
                     st.success(f"✅ Assigned: **{data['confirmed_inv']}**")
-                    if st.button("🔄 Unassign", key=f"unassign_inv_{eid}"):
+                    if st.button("🔄 Unassign", key=f"un_i_{eid}"):
                         data['confirmed_inv'] = None
                         st.rerun()
                 else:
-                    # IF NOT ASSIGNED -> SHOW ASSIGNMENT UI
                     pool = data['inv_pool']
                     idx = data['inv_idx']
                     if idx < len(pool):
@@ -389,17 +443,25 @@ with tabs[3]:
                             st.rerun()
                     else:
                         st.error("No Backups.")
-                        candidate = st.selectbox("Manual", get_all_teacher_names(), key=f"m_i_{eid}")
+                        c = st.selectbox("Manual", get_all_teacher_names(), key=f"m_i_{eid}")
                         if st.button("Confirm", key=f"c_m_i_{eid}"):
-                            data['confirmed_inv'] = candidate
+                            data['confirmed_inv'] = c
                             st.rerun()
 
 # --- TAB 5: FINAL TIMETABLE ---
 with tabs[4]:
     st.markdown("<div class='glass-container'><h3>🗓️ Final Timetable</h3></div>", unsafe_allow_html=True)
     if st.session_state.timetable:
+        
+        # Filter By Class
+        all_classes_opt = ["All Classes"] + get_all_classes()
+        filter_class = st.selectbox("Filter by Class:", all_classes_opt)
+        
         rows = []
         for exam in st.session_state.timetable:
+            if filter_class != "All Classes" and exam['class'] != filter_class:
+                continue
+                
             eid = exam['id']
             alloc = st.session_state.allocations.get(eid, {})
             r_t = alloc.get('confirmed_rev', 'Pending')
@@ -414,10 +476,17 @@ with tabs[4]:
             }
             rows.append(row)
         
-        df = pd.DataFrame(rows)
-        st.dataframe(df, use_container_width=True, hide_index=True)
-        
-        st.download_button("📥 Download Excel", convert_df_to_excel(df), "timetable.xlsx")
+        if rows:
+            df = pd.DataFrame(rows)
+            # SORTING: Date first, then Class
+            df['Date'] = pd.to_datetime(df['Date'])
+            df = df.sort_values(by=['Class', 'Date'])
+            df['Date'] = df['Date'].dt.date # Convert back for display
+            
+            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.download_button("📥 Download Excel", convert_df_to_excel(df), "timetable.xlsx")
+        else:
+            st.info("No exams found for this filter.")
     else:
         st.info("No data available.")
 
