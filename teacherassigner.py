@@ -10,7 +10,7 @@ from datetime import timedelta, datetime
 # 1. CONFIGURATION & STATE
 # ==========================================
 st.set_page_config(page_title="Exam Manager", layout="wide")
-DATA_FILE = "school_data_v5.json"
+DATA_FILE = "school_data.json"
 
 # --- PERSISTENCE FUNCTIONS ---
 def save_to_disk():
@@ -77,7 +77,7 @@ if 'temp_teacher_mappings' not in st.session_state:
     st.session_state.temp_teacher_mappings = []
 
 # ==========================================
-# 2. UI CSS (EXACT COPY AS REQUESTED)
+# 2. UI CSS (YOUR PREFERRED STYLE)
 # ==========================================
 st.markdown("""
 <style>
@@ -166,6 +166,10 @@ st.markdown("""
 # ==========================================
 # 3. HELPER FUNCTIONS & LOGIC
 # ==========================================
+def get_all_teacher_names():
+    """Helper to get list of all teacher names."""
+    return [t['name'] for t in st.session_state.teachers]
+
 def get_ordered_classes():
     keys = list(st.session_state.class_subjects.keys())
     def sort_key(x):
@@ -183,6 +187,7 @@ def get_ordered_classes():
 ORDERED_CLASSES = get_ordered_classes()
 
 def get_neighbor_classes(target_class):
+    """Smart Logic: Returns classes immediately above and below."""
     if target_class not in ORDERED_CLASSES: return []
     idx = ORDERED_CLASSES.index(target_class)
     neighbors = []
@@ -192,7 +197,7 @@ def get_neighbor_classes(target_class):
 
 def find_smart_invigilators(exam_class, exam_subject):
     """
-    Priority 1: Same class teachers (who don't teach exam subject)
+    Priority 1: Same class teachers (who don't teach the exam subject)
     Priority 2: Neighbor class teachers
     """
     primary_pool = []
@@ -200,20 +205,25 @@ def find_smart_invigilators(exam_class, exam_subject):
     
     for t in st.session_state.teachers:
         name = t['name']
-        mappings = t.get('mappings', [])
+        mappings = t.get('mappings', []) # Use .get for safety
         
-        teaches_class = any(m['class'] == exam_class for m in mappings)
-        teaches_subject = any(m['subject'] == exam_subject for m in mappings)
+        # Check if teacher teaches this class
+        teaches_this_class = any(m['class'] == exam_class for m in mappings)
+        # Check if teacher teaches the exam subject (Conflict)
+        teaches_exam_subject = any(m['subject'] == exam_subject for m in mappings)
         
-        if teaches_subject: continue 
+        if teaches_exam_subject:
+            continue # Conflict of interest
             
-        if teaches_class:
+        if teaches_this_class:
             primary_pool.append(name)
         else:
+            # Check neighbors
             neighbors = get_neighbor_classes(exam_class)
-            if any(m['class'] in neighbors for m in mappings):
+            teaches_neighbor = any(m['class'] in neighbors for m in mappings)
+            if teaches_neighbor:
                 backup_pool.append(name)
-    
+                
     random.shuffle(primary_pool)
     random.shuffle(backup_pool)
     return primary_pool + backup_pool
@@ -281,7 +291,7 @@ with st.sidebar:
                 st.session_state.timetable = data.get("timetable", [])
                 st.session_state.allocations = data.get("allocations", {})
                 st.session_state.class_subjects = data.get("class_subjects", get_default_subjects())
-                save_to_disk()
+                save_to_disk() # Save immediately
                 st.success("Data Restored! Reloading...")
                 st.rerun()
             except Exception as e:
@@ -293,7 +303,7 @@ with st.sidebar:
 
 st.markdown("<h1>🏫 Exam & Invigilation Manager</h1>", unsafe_allow_html=True)
 
-# REORDERED TABS AS REQUESTED
+# TABS
 tabs = st.tabs(["👨‍🏫 Teachers", "📅 Schedule", "✅ Allocation", "🗓️ Matrix Timetable", "📊 Stats", "📚 Subjects"])
 
 # --- TAB 1: TEACHERS ---
@@ -305,7 +315,6 @@ with tabs[0]:
         t_name = st.text_input("Teacher Name")
         
         st.markdown("##### Assign Subjects")
-        # Multi-select Classes for one subject
         m_sub = st.selectbox("Subject", get_all_subjects_unique())
         m_classes = st.multiselect("Select Classes Taught", ORDERED_CLASSES)
         
@@ -337,7 +346,6 @@ with tabs[0]:
     with c2:
         st.markdown("<div class='glass-container'><h3>Teacher Directory</h3>", unsafe_allow_html=True)
         if st.session_state.teachers:
-            # Flatten for DataFrame
             rows = []
             for i, t in enumerate(st.session_state.teachers):
                 map_txt = ", ".join([f"{m['subject']} ({m['class']})" for m in t.get('mappings', [])])
@@ -380,14 +388,11 @@ with tabs[1]:
             curr_date = start_date
             max_subs = max([len(v) for v in st.session_state.class_subjects.values()])
             
-            # Unit Test = 2 slots/day, Terminal = 1 slot/day
             slots_per_day = 2 if "Unit" in exam_type else 1
-            
-            # Subject Index Tracker
             sub_idx = 0
             
             while sub_idx < max_subs:
-                # Skip Sunday
+                # Skip Sunday (6)
                 while curr_date.weekday() == 6:
                     curr_date += timedelta(days=1)
                 
@@ -433,7 +438,7 @@ with tabs[2]:
     st.markdown("<div class='glass-container'><h3>Teacher Allocations (Edit Mode)</h3>", unsafe_allow_html=True)
     
     if not st.session_state.timetable:
-        st.info("No schedule found.")
+        st.info("No schedule found. Go to Schedule tab.")
     else:
         df = pd.DataFrame(st.session_state.timetable)
         dates = sorted(df['date'].unique())
@@ -445,7 +450,7 @@ with tabs[2]:
                     eid = ex['id']
                     alloc = st.session_state.allocations.get(eid, {})
                     
-                    c1, c2, c3, c4 = st.columns([1, 2, 3, 2])
+                    c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
                     with c1: st.write(f"**{ex['class']}**")
                     with c2: st.caption(f"{ex['subject']} ({ex['slot']})")
                     
@@ -458,10 +463,8 @@ with tabs[2]:
                         # Edit Logic
                         backups = alloc.get('backup_invs', [])
                         all_t = get_all_teacher_names()
-                        # Clean options list
                         opts = [curr_inv] + backups + [t for t in all_t if t not in backups]
-                        # Remove duplicates
-                        opts = list(dict.fromkeys(opts))
+                        opts = list(dict.fromkeys(opts)) # Deduplicate
                         
                         new_inv = st.selectbox("Change To:", opts, key=f"chg_{eid}", label_visibility="collapsed")
                         if new_inv != curr_inv:
@@ -470,7 +473,7 @@ with tabs[2]:
                             st.rerun()
                 st.write("")
 
-# --- TAB 4: MATRIX VIEW (Corrected) ---
+# --- TAB 4: MATRIX VIEW ---
 with tabs[3]:
     st.markdown("<div class='glass-container'><h3>🗓️ Timetable Matrix</h3>", unsafe_allow_html=True)
     st.caption("Rows = Dates | Columns = Classes")
@@ -485,8 +488,6 @@ with tabs[3]:
             slot_code = "(M)" if "Morning" in ex['slot'] else "(A)"
             
             if d not in data: data[d] = {}
-            
-            # Append if multiple (Unit Test)
             if c in data[d]:
                 data[d][c] += f"\n{s} {slot_code}"
             else:
@@ -501,7 +502,6 @@ with tabs[3]:
         
         st.dataframe(matrix_df, use_container_width=True)
         st.download_button("📥 Download Excel", convert_df_to_excel(matrix_df), "matrix_timetable.xlsx")
-        
     else:
         st.info("No schedule available.")
     st.markdown("</div>", unsafe_allow_html=True)
