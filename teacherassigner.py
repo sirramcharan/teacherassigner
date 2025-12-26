@@ -10,11 +10,10 @@ from datetime import timedelta, datetime
 # 1. CONFIGURATION & STATE
 # ==========================================
 st.set_page_config(page_title="Exam Manager", layout="wide")
-DATA_FILE = "school_data_final.json"
+DATA_FILE = "school_data_v4.json"
 
 # --- PERSISTENCE FUNCTIONS ---
 def save_to_disk():
-    """Saves current session state to a local JSON file."""
     data = {
         "teachers": st.session_state.teachers,
         "timetable": st.session_state.timetable,
@@ -25,7 +24,6 @@ def save_to_disk():
         json.dump(data, f, indent=4, default=str)
 
 def load_from_disk():
-    """Loads data from local JSON file if it exists."""
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, "r") as f:
@@ -34,15 +32,13 @@ def load_from_disk():
                 st.session_state.timetable = data.get("timetable", [])
                 st.session_state.allocations = data.get("allocations", {})
                 
-                # Merge saved subjects
                 saved_subs = data.get("class_subjects", {})
                 st.session_state.class_subjects = get_default_subjects()
                 st.session_state.class_subjects.update(saved_subs)
-        except Exception as e:
-            st.error(f"Corrupted save file. Starting fresh. Error: {e}")
+        except:
+            pass
 
 def get_default_subjects():
-    # UPDATED: Social & Science for Class 3-10
     base = {
         "Class 1": ["EVS", "English", "Telugu", "EHV", "Maths"],
         "Class 2": ["EVS", "English", "Telugu", "EHV", "Maths"],
@@ -78,94 +74,31 @@ if 'temp_teacher_mappings' not in st.session_state:
     st.session_state.temp_teacher_mappings = []
 
 # ==========================================
-# 2. UI CSS (EXACTLY AS REQUESTED)
+# 2. UI CSS
 # ==========================================
 st.markdown("""
 <style>
-    /* 1. Main Background */
-    .stApp {
-        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
-        font-family: 'Segoe UI', sans-serif;
-    }
-
-    /* 2. Glass Container */
-    .glass-container {
-        background: rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 15px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-
-    /* 3. Text Colors */
-    h1, h2, h3, h4 { color: #ffffff !important; font-weight: 800 !important; }
-    p, label, span, div[data-testid="stMarkdownContainer"] p { 
-        color: #ffffff !important; 
-    }
-
-    /* 4. TABS */
-    button[data-baseweb="tab"] {
-        color: #ffffff !important; 
-        background-color: transparent !important;
-        font-weight: 600 !important;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] {
-        background-color: #ffffff !important;
-        border-radius: 8px;
-    }
-    button[data-baseweb="tab"][aria-selected="true"] > div,
-    button[data-baseweb="tab"][aria-selected="true"] p {
-        color: #000000 !important;
-        font-weight: 900 !important;
-    }
-
-    /* 5. INPUTS & DROPDOWNS */
-    .stTextInput input, .stDateInput input {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-        border-radius: 5px;
-    }
-    .stSelectbox div[data-baseweb="select"] > div, .stMultiSelect div[data-baseweb="select"] > div {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-    }
-    .stSelectbox div[data-baseweb="select"] div, .stMultiSelect div[data-baseweb="select"] div {
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important; 
-    }
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-    }
-    li[data-baseweb="option"] {
-        color: #000000 !important;
-        background-color: #ffffff !important;
-    }
-
-    /* 6. BUTTONS */
-    .stButton button {
-        background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%) !important;
-        color: #000000 !important;
-        font-weight: bold !important;
-        border: none !important;
-        border-radius: 8px;
-    }
+    .stApp { background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); font-family: 'Segoe UI', sans-serif; }
+    .glass-container { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; margin-bottom: 20px; }
+    h1, h2, h3, h4 { color: #ffffff !important; }
+    p, label, span, div { color: #ffffff !important; }
     
-    /* 7. TABLES */
-    div[data-testid="stDataFrame"] {
-        background-color: rgba(255,255,255, 0.95);
-        padding: 10px;
-        border-radius: 10px;
-        color: black !important;
+    .stTextInput input, .stDateInput input, .stSelectbox div, .stMultiSelect div {
+        background-color: #ffffff !important; color: #000000 !important;
     }
+    .stSelectbox div[data-baseweb="select"] div { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
+    li[data-baseweb="option"] { color: #000000 !important; background-color: #fff !important; }
+    
+    button[data-baseweb="tab"][aria-selected="true"] { background-color: #ffffff !important; }
+    button[data-baseweb="tab"][aria-selected="true"] p { color: #000000 !important; }
+    
+    div[data-testid="stDataFrame"] { background-color: rgba(255,255,255, 0.95); padding: 10px; border-radius: 10px; color: black !important; }
+    .stButton button { background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%); color: black; font-weight: bold; border: none; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 3. HELPER FUNCTIONS & LOGIC
+# 3. LOGIC FUNCTIONS
 # ==========================================
 def get_ordered_classes():
     keys = list(st.session_state.class_subjects.keys())
@@ -176,15 +109,13 @@ def get_ordered_classes():
                 num = int(parts[0])
                 suffix = parts[1] if len(parts) > 1 else ""
                 return num, suffix
-            except:
-                return 99, x
+            except: return 99, x
         return 99, x
     return sorted(keys, key=sort_key)
 
 ORDERED_CLASSES = get_ordered_classes()
 
 def get_neighbor_classes(target_class):
-    """Smart Logic: Returns classes immediately above and below."""
     if target_class not in ORDERED_CLASSES: return []
     idx = ORDERED_CLASSES.index(target_class)
     neighbors = []
@@ -192,386 +123,338 @@ def get_neighbor_classes(target_class):
     if idx < len(ORDERED_CLASSES) - 1: neighbors.append(ORDERED_CLASSES[idx + 1])
     return neighbors
 
-def find_smart_invigilators(exam_class, exam_subject, eid):
-    """
-    1. Same Class Teachers (who don't teach the exam subject)
-    2. Neighbor Class Teachers (+/- 1)
-    """
-    primary_pool = []
-    backup_pool = []
+def find_smart_invigilators(exam_class, exam_subject):
+    primary_pool = [] # Same class, diff subject
+    backup_pool = []  # Neighbor class
     
     for t in st.session_state.teachers:
-        name = t['name']
-        mappings = t.get('mappings', []) # Use .get for safety
+        mappings = t.get('mappings', [])
+        teaches_class = any(m['class'] == exam_class for m in mappings)
+        teaches_subject = any(m['subject'] == exam_subject for m in mappings)
         
-        # Check if teacher teaches this class
-        teaches_this_class = any(m['class'] == exam_class for m in mappings)
-        # Check if teacher teaches the exam subject (Conflict)
-        teaches_exam_subject = any(m['subject'] == exam_subject for m in mappings)
+        if teaches_subject: continue # Conflict
         
-        if teaches_exam_subject:
-            continue # Conflict of interest
-            
-        if teaches_this_class:
-            primary_pool.append(name)
+        if teaches_class:
+            primary_pool.append(t['name'])
         else:
-            # Check neighbors
             neighbors = get_neighbor_classes(exam_class)
-            teaches_neighbor = any(m['class'] in neighbors for m in mappings)
-            if teaches_neighbor:
-                backup_pool.append(name)
+            if any(m['class'] in neighbors for m in mappings):
+                backup_pool.append(t['name'])
                 
-    return primary_pool, backup_pool
+    random.shuffle(primary_pool)
+    random.shuffle(backup_pool)
+    return primary_pool + backup_pool # Primary first, then backup
+
+def get_subject_teacher(exam_class, exam_subject):
+    cands = []
+    for t in st.session_state.teachers:
+        for m in t.get('mappings', []):
+            if m['class'] == exam_class and m['subject'] == exam_subject:
+                cands.append(t['name'])
+    return cands[0] if cands else "Not Found"
+
+def auto_assign_allocation(eid, cls, sub):
+    # Only assign if not already assigned
+    if eid not in st.session_state.allocations:
+        rev = get_subject_teacher(cls, sub)
+        inv_list = find_smart_invigilators(cls, sub)
+        inv = inv_list[0] if inv_list else "No Invigilator"
+        
+        st.session_state.allocations[eid] = {
+            "rev_teacher": rev,
+            "inv_teacher": inv,
+            "inv_backups": inv_list # Store list for editing later
+        }
+
+def get_all_subjects_unique():
+    s = set()
+    for v in st.session_state.class_subjects.values(): s.update(v)
+    return sorted(list(s))
 
 def convert_df_to_excel(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Sheet1')
+        df.to_excel(writer, index=True, sheet_name='Sheet1') # Index=True for Date column
     return output.getvalue()
 
-def get_all_teacher_names():
-    return [t['name'] for t in st.session_state.teachers]
-
 # ==========================================
-# 4. SIDEBAR: DATA BACKUP
-# ==========================================
-with st.sidebar:
-    st.header("💾 Data Manager")
-    
-    # 1. Download
-    current_data = {
-        "teachers": st.session_state.teachers,
-        "timetable": st.session_state.timetable,
-        "allocations": st.session_state.allocations,
-        "class_subjects": st.session_state.class_subjects
-    }
-    json_str = json.dumps(current_data, indent=4, default=str)
-    st.download_button(
-        label="⬇️ Download Backup",
-        data=json_str,
-        file_name="school_data_backup.json",
-        mime="application/json",
-    )
-    
-    # 2. Upload
-    st.markdown("---")
-    uploaded_file = st.file_uploader("⬆️ Restore Data", type=["json"])
-    if uploaded_file is not None:
-        if st.button("Confirm Restore"):
-            try:
-                data = json.load(uploaded_file)
-                st.session_state.teachers = data.get("teachers", [])
-                st.session_state.timetable = data.get("timetable", [])
-                st.session_state.allocations = data.get("allocations", {})
-                st.session_state.class_subjects = data.get("class_subjects", get_default_subjects())
-                save_to_disk() # Save immediately
-                st.success("Data Restored! Reloading...")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error restoring: {e}")
-
-# ==========================================
-# 5. MAIN APP
+# 4. APP UI
 # ==========================================
 
 st.markdown("<h1>🏫 Exam & Invigilation Manager</h1>", unsafe_allow_html=True)
+tabs = st.tabs(["👨‍🏫 Teachers", "📅 Schedule", "✅ Allocation", "🗓️ Matrix View", "📊 Stats", "📚 Subjects"])
 
-tabs = st.tabs(["Teachers", "Subjects", "Schedule", "Allocation", "Timetable", "Stats"])
-
-# --- TAB 1: TEACHERS (Complex Mappings) ---
+# --- TAB 1: TEACHERS ---
 with tabs[0]:
     c1, c2 = st.columns([1, 1])
     
     with c1:
-        st.markdown("<div class='glass-container'><h3>Add New Teacher</h3>", unsafe_allow_html=True)
+        st.markdown("<div class='glass-container'><h3>Add Teacher</h3>", unsafe_allow_html=True)
         t_name = st.text_input("Teacher Name")
         
-        st.markdown("##### Assign Classes & Subjects")
-        # Staging Area
-        col_a, col_b = st.columns(2)
-        with col_a:
-            m_cls = st.selectbox("Class", ORDERED_CLASSES)
-        with col_b:
-            avail_subs = st.session_state.class_subjects.get(m_cls, [])
-            m_sub = st.selectbox("Subject", avail_subs)
+        st.markdown("##### Assign Subjects to Classes")
+        # Multi-select Classes for one subject
+        m_sub = st.selectbox("Subject", get_all_subjects_unique())
+        m_classes = st.multiselect("Select Classes", ORDERED_CLASSES)
         
         if st.button("Add Mapping"):
-            st.session_state.temp_teacher_mappings.append({"class": m_cls, "subject": m_sub})
+            if m_sub and m_classes:
+                for c in m_classes:
+                    st.session_state.temp_teacher_mappings.append({"class": c, "subject": m_sub})
+            else:
+                st.error("Select subject and at least one class.")
             
-        # Show Staged Mappings
         if st.session_state.temp_teacher_mappings:
-            st.write("Current Assignments:")
-            for i, m in enumerate(st.session_state.temp_teacher_mappings):
-                st.caption(f"{i+1}. {m['class']} - {m['subject']}")
+            st.write("**Pending Assignments:**")
+            st.dataframe(pd.DataFrame(st.session_state.temp_teacher_mappings), height=150)
                 
-        if st.button("💾 Save Teacher Profile", type="primary"):
+        if st.button("💾 Save Teacher", type="primary"):
             if t_name and st.session_state.temp_teacher_mappings:
                 st.session_state.teachers.append({
                     "name": t_name,
                     "mappings": st.session_state.temp_teacher_mappings
                 })
-                st.session_state.temp_teacher_mappings = [] # Reset
+                st.session_state.temp_teacher_mappings = []
                 save_to_disk()
                 st.success(f"Saved {t_name}")
                 st.rerun()
             else:
-                st.error("Name and at least one subject mapping required.")
+                st.error("Name and mappings required.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
         st.markdown("<div class='glass-container'><h3>Teacher Directory</h3>", unsafe_allow_html=True)
         if st.session_state.teachers:
+            # Flatten for DataFrame
+            rows = []
             for i, t in enumerate(st.session_state.teachers):
-                with st.expander(f"👤 {t['name']}"):
-                    # Robust check for 'mappings' key in case of old data format
-                    mappings = t.get('mappings', [])
-                    if not mappings and 'subjects' in t: # Fallback for old format
-                         st.warning("Old data format detected. Please delete and re-add.")
-                    else:
-                        map_str = [f"{m['class']}: {m['subject']}" for m in mappings]
-                        st.write(" | ".join(map_str))
-                    
-                    if st.button("Delete", key=f"del_t_{i}"):
-                        st.session_state.teachers.pop(i)
-                        save_to_disk()
-                        st.rerun()
+                # Create a concise string of mappings
+                map_txt = ", ".join([f"{m['subject']} ({m['class']})" for m in t.get('mappings', [])])
+                rows.append({"Name": t['name'], "Subjects & Classes": map_txt})
+            
+            df_t = pd.DataFrame(rows)
+            st.dataframe(df_t, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            col_del_1, col_del_2 = st.columns([3, 1])
+            with col_del_1:
+                del_name = st.selectbox("Select Teacher to Delete", [t['name'] for t in st.session_state.teachers])
+            with col_del_2:
+                if st.button("Delete"):
+                    # Find and remove
+                    for i, t in enumerate(st.session_state.teachers):
+                        if t['name'] == del_name:
+                            st.session_state.teachers.pop(i)
+                            save_to_disk()
+                            st.rerun()
+                            break
         else:
-            st.info("No teachers added yet.")
+            st.info("No teachers added.")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TAB 2: SUBJECTS ---
+# --- TAB 2: SCHEDULE (Auto-Scheduler) ---
 with tabs[1]:
-    st.markdown("<div class='glass-container'><h3>Manage Subjects</h3>", unsafe_allow_html=True)
-    with st.form("sub_form"):
-        target_classes = st.multiselect("Select Classes", ORDERED_CLASSES)
-        new_sub = st.text_input("New Subject Name")
-        
-        if st.form_submit_button("Add Subject"):
-            if new_sub and target_classes:
-                count = 0
-                for c in target_classes:
-                    if new_sub not in st.session_state.class_subjects[c]:
-                        st.session_state.class_subjects[c].append(new_sub)
-                        count += 1
-                if count > 0:
-                    save_to_disk()
-                    st.success(f"Added to {count} classes.")
-                else:
-                    st.warning("Subject already exists in selected classes.")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# --- TAB 3: SCHEDULE (Auto-Scheduler) ---
-with tabs[2]:
     st.markdown("<div class='glass-container'><h3>Auto-Scheduler</h3>", unsafe_allow_html=True)
     
     with st.form("auto_sched"):
-        start_date = st.date_input("Start Date")
-        if st.form_submit_button("🚀 Generate Full Schedule"):
-            st.session_state.timetable = [] # Clear old
-            curr_date = start_date
+        c1, c2 = st.columns(2)
+        with c1:
+            start_date = st.date_input("Start Date")
+        with c2:
+            exam_type = st.radio("Exam Type", ["Unit Test (2/day)", "Terminal Exam (1/day)"])
             
-            # Determine max days needed
+        if st.form_submit_button("🚀 Generate Schedule"):
+            st.session_state.timetable = [] # Reset
+            st.session_state.allocations = {} # Reset allocations
+            
+            curr_date = start_date
+            # Determine max subjects to schedule
             max_subs = max([len(v) for v in st.session_state.class_subjects.values()])
             
-            for day_idx in range(max_subs):
-                exam_day = curr_date + timedelta(days=day_idx)
+            slots_per_day = 2 if "Unit" in exam_type else 1
+            
+            # Logic to iterate days
+            subjects_scheduled_count = 0
+            while subjects_scheduled_count < max_subs:
+                # Skip Sundays
+                while curr_date.weekday() == 6: # 6 = Sunday
+                    curr_date += timedelta(days=1)
+                
+                # Schedule for this day
                 for cls in ORDERED_CLASSES:
                     subs = st.session_state.class_subjects[cls]
-                    if day_idx < len(subs):
-                        subject = subs[day_idx]
-                        eid = f"{exam_day}_{cls}_Morning"
+                    
+                    # Morning Slot
+                    if subjects_scheduled_count < len(subs):
+                        s1 = subs[subjects_scheduled_count]
+                        eid = f"{curr_date}_{cls}_Morning"
                         st.session_state.timetable.append({
-                            "id": eid, "date": str(exam_day), "class": cls,
-                            "subject": subject, "slot": "Morning (Exam: 3rd-4th)",
+                            "id": eid, "date": str(curr_date), "class": cls,
+                            "subject": s1, "slot": "Morning",
                             "rev_p": "1st-2nd", "exam_p": "3rd-4th"
                         })
+                        # Auto-Assign Immediately
+                        auto_assign_allocation(eid, cls, s1)
+                    
+                    # Afternoon Slot (Only for Unit Tests)
+                    if slots_per_day == 2:
+                        idx_2 = subjects_scheduled_count + 1
+                        if idx_2 < len(subs):
+                            s2 = subs[idx_2]
+                            eid = f"{curr_date}_{cls}_Afternoon"
+                            st.session_state.timetable.append({
+                                "id": eid, "date": str(curr_date), "class": cls,
+                                "subject": s2, "slot": "Afternoon",
+                                "rev_p": "5th-6th", "exam_p": "7th-8th"
+                            })
+                            auto_assign_allocation(eid, cls, s2)
+                
+                # Increment subject counter
+                subjects_scheduled_count += slots_per_day
+                curr_date += timedelta(days=1)
+                
             save_to_disk()
-            st.success("Schedule Generated!")
+            st.success("Schedule & Allocations Generated Successfully!")
             st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Manual Edits
-    if st.session_state.timetable:
-        st.markdown("<div class='glass-container'><h3>Manage Exams (Edit/Swap)</h3>", unsafe_allow_html=True)
-        f_cls = st.selectbox("Filter Class", ["All"] + ORDERED_CLASSES)
-        exams = sorted(st.session_state.timetable, key=lambda x: x['date'])
-        
-        for ex in exams:
-            if f_cls != "All" and ex['class'] != f_cls: continue
             
-            with st.expander(f"{ex['date']} | {ex['class']} | {ex['subject']}"):
-                c1, c2, c3 = st.columns([2, 2, 1])
-                with c1:
-                    new_date = st.date_input("Date", pd.to_datetime(ex['date']), key=f"d_{ex['id']}")
-                with c2:
-                    curr_subs = st.session_state.class_subjects[ex['class']]
-                    try:
-                        idx = curr_subs.index(ex['subject'])
-                    except ValueError:
-                        idx = 0
-                    new_sub = st.selectbox("Subject", curr_subs, index=idx, key=f"s_{ex['id']}")
-                with c3:
-                    st.write("")
-                    st.write("")
-                    if st.button("Update", key=f"up_{ex['id']}"):
-                        ex['date'] = str(new_date)
-                        ex['subject'] = new_sub
-                        ex['id'] = f"{new_date}_{ex['class']}_Morning"
-                        # Clear allocation if changed
-                        if ex['id'] in st.session_state.allocations:
-                            del st.session_state.allocations[ex['id']]
-                        save_to_disk()
-                        st.rerun()
-                    if st.button("Delete", key=f"del_{ex['id']}"):
-                        st.session_state.timetable.remove(ex)
-                        save_to_disk()
-                        st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TAB 4: ALLOCATION (Smart Logic) ---
-with tabs[3]:
-    st.markdown("<div class='glass-container'><h3>Invigilation Allocation</h3></div>", unsafe_allow_html=True)
+# --- TAB 3: ALLOCATION (Auto-Assigned View) ---
+with tabs[2]:
+    st.markdown("<div class='glass-container'><h3>Teacher Allocations (Auto-Assigned)</h3>", unsafe_allow_html=True)
     
     if not st.session_state.timetable:
-        st.info("No schedule found.")
-        
-    for exam in st.session_state.timetable:
-        eid = exam['id']
-        
-        # Auto-init allocation
-        if eid not in st.session_state.allocations:
-            prim, back = find_smart_invigilators(exam['class'], exam['subject'], eid)
-            random.shuffle(prim)
-            random.shuffle(back)
-            
-            # Revision candidates (Subject Teachers)
-            rev_cands = []
-            for t in st.session_state.teachers:
-                mappings = t.get('mappings', [])
-                for m in mappings:
-                    if m['class'] == exam['class'] and m['subject'] == exam['subject']:
-                        rev_cands.append(t['name'])
-            
-            st.session_state.allocations[eid] = {
-                "rev_pool": rev_cands, "rev_idx": 0, "confirmed_rev": None,
-                "inv_pool": prim + back, "inv_idx": 0, "confirmed_inv": None
-            }
-            
-        alloc = st.session_state.allocations[eid]
-        
-        with st.expander(f"{exam['date']} | {exam['class']} | {exam['subject']}", expanded=True):
-            rc, ic = st.columns(2)
-            
-            # Revision
-            with rc:
-                st.markdown(f"#### 📖 Revision ({exam['rev_p']})")
-                if alloc['confirmed_rev']:
-                    st.success(f"**{alloc['confirmed_rev']}**")
-                    if st.button("🔄 Unassign", key=f"un_r_{eid}"):
-                        alloc['confirmed_rev'] = None
-                        save_to_disk()
-                        st.rerun()
-                else:
-                    pool = alloc['rev_pool']
-                    if pool:
-                        cand = pool[0]
-                        st.info(f"Draft: **{cand}**")
-                        if st.button("Confirm", key=f"cf_r_{eid}"):
-                            alloc['confirmed_rev'] = cand
-                            save_to_disk()
-                            st.rerun()
-                    else:
-                        st.warning("No subject teacher found.")
-                        man = st.selectbox("Manual", get_all_teacher_names(), key=f"mn_r_{eid}")
-                        if st.button("Assign", key=f"mn_btn_r_{eid}"):
-                            alloc['confirmed_rev'] = man
-                            save_to_disk()
-                            st.rerun()
-
-            # Invigilation
-            with ic:
-                st.markdown(f"#### 📝 Invigilation ({exam['exam_p']})")
-                if alloc['confirmed_inv']:
-                    st.success(f"**{alloc['confirmed_inv']}**")
-                    if st.button("🔄 Unassign", key=f"un_i_{eid}"):
-                        alloc['confirmed_inv'] = None
-                        save_to_disk()
-                        st.rerun()
-                else:
-                    pool = alloc['inv_pool']
-                    idx = alloc['inv_idx']
-                    if idx < len(pool):
-                        cand = pool[idx]
-                        st.info(f"Candidate: **{cand}**")
-                        c1, c2 = st.columns(2)
-                        if c1.button("✅ Available", key=f"ok_i_{eid}_{idx}"):
-                            alloc['confirmed_inv'] = cand
-                            save_to_disk()
-                            st.rerun()
-                        if c2.button("❌ Skip", key=f"no_i_{eid}_{idx}"):
-                            alloc['inv_idx'] += 1
-                            save_to_disk()
-                            st.rerun()
-                    else:
-                        st.error("No smart suggestions left.")
-                        man = st.selectbox("Manual Backup", get_all_teacher_names(), key=f"mn_i_{eid}")
-                        if st.button("Assign", key=f"mn_btn_i_{eid}"):
-                            alloc['confirmed_inv'] = man
-                            save_to_disk()
-                            st.rerun()
-
-# --- TAB 5: TIMETABLE (Date-Wise) ---
-with tabs[4]:
-    st.markdown("<div class='glass-container'><h3>🗓️ Final Timetable</h3></div>", unsafe_allow_html=True)
-    
-    if st.session_state.timetable:
+        st.info("No schedule found. Go to Schedule tab.")
+    else:
+        # Group by Date
         df = pd.DataFrame(st.session_state.timetable)
         dates = sorted(df['date'].unique())
         
         for d in dates:
-            st.markdown(f"### {d}")
-            day_exams = df[df['date'] == d]
-            
-            table_rows = []
-            for _, ex in day_exams.iterrows():
-                alloc = st.session_state.allocations.get(ex['id'], {})
-                rev = alloc.get('confirmed_rev', 'Pending')
-                inv = alloc.get('confirmed_inv', 'Pending')
-                
-                table_rows.append({
-                    "Class": ex['class'],
-                    "Subject": ex['subject'],
-                    "Revision Teacher": rev,
-                    "Invigilator": inv
-                })
-            
-            day_df = pd.DataFrame(table_rows)
-            # Sort by Class
-            day_df['Class'] = pd.Categorical(day_df['Class'], categories=ORDERED_CLASSES, ordered=True)
-            day_df = day_df.sort_values('Class')
-            
-            st.dataframe(day_df, use_container_width=True, hide_index=True)
-            st.markdown("---")
-            
-    else:
-        st.info("Schedule is empty.")
+            with st.expander(f"📅 {d}", expanded=False):
+                day_exams = df[df['date'] == d]
+                for _, ex in day_exams.iterrows():
+                    eid = ex['id']
+                    alloc = st.session_state.allocations.get(eid, {})
+                    
+                    c1, c2, c3, c4 = st.columns([1, 2, 2, 2])
+                    with c1: st.write(f"**{ex['class']}**")
+                    with c2: st.caption(f"{ex['subject']} ({ex['slot']})")
+                    
+                    # Edit Logic
+                    with c3:
+                        curr_rev = alloc.get('rev_teacher', 'None')
+                        curr_inv = alloc.get('inv_teacher', 'None')
+                        st.write(f"**Rev:** {curr_rev} | **Inv:** {curr_inv}")
+                        
+                    with c4:
+                        # Edit Button triggers a selectbox
+                        if st.checkbox(f"Edit {ex['class']} ({ex['slot']})", key=f"ed_{eid}"):
+                            # Revision Edit
+                            rev_opts = [curr_rev] + get_all_teacher_names()
+                            new_rev = st.selectbox("Rev", rev_opts, key=f"nr_{eid}")
+                            
+                            # Inv Edit
+                            backups = alloc.get('inv_backups', [])
+                            all_t = get_all_teacher_names()
+                            # Combine priorities
+                            inv_opts = [curr_inv] + backups + [t for t in all_t if t not in backups]
+                            new_inv = st.selectbox("Inv", inv_opts, key=f"ni_{eid}")
+                            
+                            if st.button("Save Change", key=f"sv_{eid}"):
+                                st.session_state.allocations[eid]['rev_teacher'] = new_rev
+                                st.session_state.allocations[eid]['inv_teacher'] = new_inv
+                                save_to_disk()
+                                st.rerun()
+                st.write("")
 
-# --- TAB 6: STATS ---
-with tabs[5]:
-    st.markdown("<div class='glass-container'><h3>📊 Workload Statistics</h3></div>", unsafe_allow_html=True)
+# --- TAB 4: MATRIX VIEW (Dates x Classes) ---
+with tabs[3]:
+    st.markdown("<div class='glass-container'><h3>🗓️ Timetable Matrix</h3></div>", unsafe_allow_html=True)
+    
+    if st.session_state.timetable:
+        # Prepare Data for Matrix
+        data = {} # Key: Date, Value: {Class: "Math (M) / Sci (A)"}
+        
+        for ex in st.session_state.timetable:
+            d = ex['date']
+            c = ex['class']
+            s = ex['subject']
+            slot_code = "(M)" if "Morning" in ex['slot'] else "(A)"
+            
+            if d not in data: data[d] = {}
+            
+            # Combine if multiple exams per day
+            if c in data[d]:
+                data[d][c] += f" | {s} {slot_code}"
+            else:
+                data[d][c] = f"{s} {slot_code}"
+                
+        # Convert to DataFrame
+        matrix_df = pd.DataFrame.from_dict(data, orient='index')
+        matrix_df = matrix_df.reindex(columns=ORDERED_CLASSES) # Sort columns
+        matrix_df.index.name = "Date"
+        matrix_df.sort_index(inplace=True)
+        
+        # Display
+        st.dataframe(matrix_df, use_container_width=True)
+        st.download_button("📥 Download Excel", convert_df_to_excel(matrix_df), "matrix_timetable.xlsx")
+    else:
+        st.info("No schedule available.")
+
+# --- TAB 5: STATS ---
+with tabs[4]:
+    st.markdown("<div class='glass-container'><h3>Stats</h3></div>", unsafe_allow_html=True)
     if st.session_state.allocations:
         counts = {t['name']: 0 for t in st.session_state.teachers}
         for a in st.session_state.allocations.values():
-            if a.get('confirmed_inv'):
-                counts[a['confirmed_inv']] = counts.get(a['confirmed_inv'], 0) + 1
+            inv = a.get('inv_teacher')
+            if inv and inv in counts:
+                counts[inv] += 1
                 
-        df_s = pd.DataFrame(list(counts.items()), columns=["Teacher Name", "Total Duties"])
-        df_s = df_s.sort_values("Total Duties", ascending=False)
+        df_s = pd.DataFrame(list(counts.items()), columns=["Teacher", "Invigilations"])
+        df_s = df_s.sort_values("Invigilations", ascending=False)
         
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.dataframe(df_s, use_container_width=True, hide_index=True)
-        with col2:
-            st.bar_chart(df_s.set_index("Teacher Name"))
-    else:
-        st.warning("No allocations yet.")
+        c1, c2 = st.columns([1, 2])
+        with c1: st.dataframe(df_s, hide_index=True)
+        with c2: st.bar_chart(df_s.set_index("Teacher"))
+
+# --- TAB 6: SUBJECTS (Last) ---
+with tabs[5]:
+    st.markdown("<div class='glass-container'><h3>Manage Subjects</h3>", unsafe_allow_html=True)
+    with st.form("sub_form"):
+        classes = st.multiselect("Select Classes", ORDERED_CLASSES)
+        new_sub = st.text_input("Subject Name")
+        if st.form_submit_button("Add Subject"):
+            count = 0
+            for c in classes:
+                if new_sub not in st.session_state.class_subjects[c]:
+                    st.session_state.class_subjects[c].append(new_sub)
+                    count += 1
+            if count > 0:
+                save_to_disk()
+                st.success(f"Added to {count} classes.")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+# --- SIDEBAR: DATA BACKUP ---
+with st.sidebar:
+    st.header("💾 Backup & Restore")
+    json_str = json.dumps({
+        "teachers": st.session_state.teachers,
+        "timetable": st.session_state.timetable,
+        "allocations": st.session_state.allocations,
+        "class_subjects": st.session_state.class_subjects
+    }, indent=4, default=str)
+    st.download_button("⬇️ Download JSON", json_str, "backup.json", "application/json")
+    
+    uploaded_file = st.file_uploader("⬆️ Restore JSON", type=["json"])
+    if uploaded_file and st.button("Confirm Restore"):
+        try:
+            data = json.load(uploaded_file)
+            st.session_state.teachers = data.get("teachers", [])
+            st.session_state.timetable = data.get("timetable", [])
+            st.session_state.allocations = data.get("allocations", {})
+            st.session_state.class_subjects = data.get("class_subjects", get_default_subjects())
+            save_to_disk()
+            st.rerun()
+        except: st.error("Invalid file.")
