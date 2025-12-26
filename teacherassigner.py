@@ -10,7 +10,7 @@ from datetime import timedelta, datetime
 # 1. CONFIGURATION & STATE
 # ==========================================
 st.set_page_config(page_title="Exam Manager", layout="wide")
-DATA_FILE = "school_data_v2.json"
+DATA_FILE = "school_data_v3.json"
 
 # --- PERSISTENCE FUNCTIONS ---
 def save_to_disk():
@@ -61,8 +61,7 @@ def get_default_subjects():
             base[f"Class {i} ({g})"] = common + spec[g]
     return base
 
-# --- INITIALIZATION (FIXED) ---
-# Ensure these exist regardless of load state
+# --- INITIALIZATION ---
 if 'teachers' not in st.session_state:
     st.session_state.teachers = []
     st.session_state.timetable = []
@@ -70,30 +69,113 @@ if 'teachers' not in st.session_state:
     st.session_state.class_subjects = get_default_subjects()
     load_from_disk()
 
-# Always initialize this helper variable
+# FIXED: Initialize this outside the check so it always exists
 if 'temp_teacher_mappings' not in st.session_state:
     st.session_state.temp_teacher_mappings = []
 
 # ==========================================
-# 2. CSS STYLING
+# 2. RESTORED SLEEK UI CSS
 # ==========================================
 st.markdown("""
 <style>
-    .stApp { background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); font-family: 'Segoe UI', sans-serif; }
-    .glass-container { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 15px; padding: 20px; margin-bottom: 20px; }
-    h1, h2, h3, h4 { color: #ffffff !important; }
-    p, label, span, div { color: #ffffff !important; }
-    
-    .stTextInput input, .stDateInput input, .stSelectbox div, .stMultiSelect div {
-        background-color: #ffffff !important; color: #000000 !important;
+    /* 1. Main Background - Deep Dark Blue Gradient */
+    .stApp {
+        background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+        font-family: 'Segoe UI', sans-serif;
     }
-    .stSelectbox div[data-baseweb="select"] div { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
-    li[data-baseweb="option"] { color: #000000 !important; background-color: #fff !important; }
+
+    /* 2. Glass Container */
+    .glass-container {
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+
+    /* 3. Text Colors (Global White) */
+    h1, h2, h3, h4 { color: #ffffff !important; font-weight: 800 !important; }
+    p, label, span, div[data-testid="stMarkdownContainer"] p { 
+        color: #ffffff !important; 
+    }
+
+    /* 4. TABS - Fixed Visibility */
+    /* Unselected Tabs: White Text */
+    button[data-baseweb="tab"] {
+        color: #ffffff !important; 
+        background-color: transparent !important;
+        font-weight: 600 !important;
+    }
+    /* Selected Tab: White BG + BLACK Text */
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background-color: #ffffff !important;
+        border-radius: 8px;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] > div,
+    button[data-baseweb="tab"][aria-selected="true"] p {
+        color: #000000 !important;
+        font-weight: 900 !important;
+    }
+
+    /* 5. INPUTS & DROPDOWNS (High Contrast: White Box, Black Text) */
+    .stTextInput input, .stDateInput input {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
     
-    button[data-baseweb="tab"][aria-selected="true"] { background-color: #ffffff !important; }
-    button[data-baseweb="tab"][aria-selected="true"] p { color: #000000 !important; }
+    /* SelectBox Fixes */
+    .stSelectbox div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    .stSelectbox div[data-baseweb="select"] div {
+        color: #000000 !important;
+        -webkit-text-fill-color: #000000 !important; 
+    }
     
-    .stButton button { background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%); color: black; font-weight: bold; border: none; }
+    /* Dropdown Menus */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[data-baseweb="menu"] {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    li[data-baseweb="option"] {
+        color: #000000 !important;
+        background-color: #ffffff !important;
+    }
+    
+    /* MultiSelect */
+    .stMultiSelect div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+    }
+    .stMultiSelect span[data-baseweb="tag"] {
+        background-color: #e0e0e0 !important;
+        color: black !important;
+    }
+
+    /* 6. BUTTONS */
+    .stButton button {
+        background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%) !important;
+        color: #000000 !important;
+        font-weight: bold !important;
+        border: none !important;
+        border-radius: 8px;
+    }
+    .stButton button:hover {
+        transform: scale(1.02);
+    }
+    
+    /* 7. TABLES */
+    div[data-testid="stDataFrame"] {
+        background-color: rgba(255,255,255, 0.95);
+        padding: 10px;
+        border-radius: 10px;
+        color: black !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -105,9 +187,12 @@ def get_ordered_classes():
     def sort_key(x):
         if "Class" in x:
             parts = x.replace("Class ", "").split(" ")
-            num = int(parts[0])
-            suffix = parts[1] if len(parts) > 1 else ""
-            return num, suffix
+            try:
+                num = int(parts[0])
+                suffix = parts[1] if len(parts) > 1 else ""
+                return num, suffix
+            except:
+                return 99, x
         return 99, x
     return sorted(keys, key=sort_key)
 
@@ -145,11 +230,17 @@ def find_smart_invigilators(exam_class, exam_subject, eid):
                 
     return primary_pool, backup_pool
 
+def convert_df_to_excel(df):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
+    return output.getvalue()
+
 # ==========================================
 # 4. APP UI
 # ==========================================
 
-st.title("🏫 Exam & Invigilation Manager")
+st.markdown("<h1>🏫 Exam & Invigilation Manager</h1>", unsafe_allow_html=True)
 tabs = st.tabs(["👨‍🏫 Teachers", "📚 Subjects", "📅 Schedule", "✅ Allocation", "🗓️ Timetable", "📊 Stats"])
 
 # --- TAB 1: TEACHERS ---
@@ -161,9 +252,12 @@ with tabs[0]:
         t_name = st.text_input("Teacher Name")
         
         st.markdown("##### Assign Classes & Subjects")
-        m_cls = st.selectbox("Class", ORDERED_CLASSES)
-        avail_subs = st.session_state.class_subjects.get(m_cls, [])
-        m_sub = st.selectbox("Subject", avail_subs)
+        col_a, col_b = st.columns(2)
+        with col_a:
+            m_cls = st.selectbox("Class", ORDERED_CLASSES)
+        with col_b:
+            avail_subs = st.session_state.class_subjects.get(m_cls, [])
+            m_sub = st.selectbox("Subject", avail_subs)
         
         if st.button("Add Mapping"):
             st.session_state.temp_teacher_mappings.append({"class": m_cls, "subject": m_sub})
@@ -262,10 +356,14 @@ with tabs[2]:
                     new_date = st.date_input("Date", pd.to_datetime(ex['date']), key=f"d_{ex['id']}")
                 with c2:
                     curr_subs = st.session_state.class_subjects[ex['class']]
-                    idx = curr_subs.index(ex['subject']) if ex['subject'] in curr_subs else 0
+                    # Handle subject not found safe-guard
+                    try:
+                        idx = curr_subs.index(ex['subject'])
+                    except ValueError:
+                        idx = 0
                     new_sub = st.selectbox("Subject", curr_subs, index=idx, key=f"s_{ex['id']}")
                 with c3:
-                    st.write("")
+                    st.write("") 
                     st.write("")
                     if st.button("Update", key=f"up_{ex['id']}"):
                         ex['date'] = str(new_date)
@@ -394,6 +492,7 @@ with tabs[4]:
                 })
             
             day_df = pd.DataFrame(table_rows)
+            # Use Categorical sorting for classes
             day_df['Class'] = pd.Categorical(day_df['Class'], categories=ORDERED_CLASSES, ordered=True)
             day_df = day_df.sort_values('Class')
             
