@@ -38,12 +38,10 @@ def load_from_disk():
             pass
 
 def get_default_subjects():
-    # UPDATED: Social and Science added to Class 3-10
     base = {
         "Class 1": ["EVS", "English", "Telugu", "EHV", "Maths"],
         "Class 2": ["EVS", "English", "Telugu", "EHV", "Maths"],
     }
-    # Class 3 to 10
     for i in range(3, 11):
         cls_name = f"Class {i}"
         subs = ["EVS", "English", "Telugu", "EHV", "Maths", "Hindi", "Science", "Social"]
@@ -51,7 +49,6 @@ def get_default_subjects():
         if i >= 9: subs.insert(0, "AI")
         base[cls_name] = subs
         
-    # Class 11-12
     groups = ["MPC", "BPC", "CAE"]
     common = ["English", "Telugu", "EHV"]
     spec = {
@@ -64,15 +61,18 @@ def get_default_subjects():
             base[f"Class {i} ({g})"] = common + spec[g]
     return base
 
-# --- INITIALIZATION ---
+# --- INITIALIZATION (FIXED) ---
+# Ensure these exist regardless of load state
 if 'teachers' not in st.session_state:
     st.session_state.teachers = []
     st.session_state.timetable = []
     st.session_state.allocations = {}
     st.session_state.class_subjects = get_default_subjects()
-    # Temp staging for adding complex teacher data
-    st.session_state.temp_teacher_mappings = [] 
     load_from_disk()
+
+# Always initialize this helper variable
+if 'temp_teacher_mappings' not in st.session_state:
+    st.session_state.temp_teacher_mappings = []
 
 # ==========================================
 # 2. CSS STYLING
@@ -84,18 +84,15 @@ st.markdown("""
     h1, h2, h3, h4 { color: #ffffff !important; }
     p, label, span, div { color: #ffffff !important; }
     
-    /* Input Visibility Fixes */
     .stTextInput input, .stDateInput input, .stSelectbox div, .stMultiSelect div {
         background-color: #ffffff !important; color: #000000 !important;
     }
     .stSelectbox div[data-baseweb="select"] div { color: #000000 !important; -webkit-text-fill-color: #000000 !important; }
     li[data-baseweb="option"] { color: #000000 !important; background-color: #fff !important; }
     
-    /* Tabs */
     button[data-baseweb="tab"][aria-selected="true"] { background-color: #ffffff !important; }
     button[data-baseweb="tab"][aria-selected="true"] p { color: #000000 !important; }
     
-    /* Buttons */
     .stButton button { background: linear-gradient(90deg, #00C9FF 0%, #92FE9D 100%); color: black; font-weight: bold; border: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -104,9 +101,7 @@ st.markdown("""
 # 3. LOGIC FUNCTIONS
 # ==========================================
 def get_ordered_classes():
-    # Define logical order for +/- 1 calculation
     keys = list(st.session_state.class_subjects.keys())
-    # Sort simple classes first, then grouped ones
     def sort_key(x):
         if "Class" in x:
             parts = x.replace("Class ", "").split(" ")
@@ -119,7 +114,6 @@ def get_ordered_classes():
 ORDERED_CLASSES = get_ordered_classes()
 
 def get_neighbor_classes(target_class):
-    """Returns classes immediately above and below the target class."""
     if target_class not in ORDERED_CLASSES: return []
     idx = ORDERED_CLASSES.index(target_class)
     neighbors = []
@@ -128,43 +122,28 @@ def get_neighbor_classes(target_class):
     return neighbors
 
 def find_smart_invigilators(exam_class, exam_subject, eid):
-    """
-    1. Same Class Teachers (who don't teach the subject)
-    2. Neighbor Class Teachers (+/- 1)
-    """
     primary_pool = []
     backup_pool = []
     
-    # Check already assigned teachers for this specific slot to exclude them?
-    # For simplicity, we filter availability in the UI step, here we just get eligible candidates.
-    
     for t in st.session_state.teachers:
         name = t['name']
-        mappings = t['mappings'] # List of {'class': 'X', 'subject': 'Y'}
+        mappings = t['mappings']
         
-        # Check if teacher teaches this class
         teaches_this_class = any(m['class'] == exam_class for m in mappings)
-        # Check if teacher teaches the exam subject (Conflict)
         teaches_exam_subject = any(m['subject'] == exam_subject for m in mappings)
         
         if teaches_exam_subject:
-            continue # Conflict of interest
+            continue
             
         if teaches_this_class:
             primary_pool.append(name)
         else:
-            # Check neighbors
             neighbors = get_neighbor_classes(exam_class)
             teaches_neighbor = any(m['class'] in neighbors for m in mappings)
             if teaches_neighbor:
                 backup_pool.append(name)
                 
     return primary_pool, backup_pool
-
-def get_all_subjects_flat():
-    s = set()
-    for v in st.session_state.class_subjects.values(): s.update(v)
-    return sorted(list(s))
 
 # ==========================================
 # 4. APP UI
@@ -173,7 +152,7 @@ def get_all_subjects_flat():
 st.title("🏫 Exam & Invigilation Manager")
 tabs = st.tabs(["👨‍🏫 Teachers", "📚 Subjects", "📅 Schedule", "✅ Allocation", "🗓️ Timetable", "📊 Stats"])
 
-# --- TAB 1: TEACHERS (Complex Mapping) ---
+# --- TAB 1: TEACHERS ---
 with tabs[0]:
     c1, c2 = st.columns([1, 1])
     
@@ -182,7 +161,6 @@ with tabs[0]:
         t_name = st.text_input("Teacher Name")
         
         st.markdown("##### Assign Classes & Subjects")
-        # Staging Area for Mappings
         m_cls = st.selectbox("Class", ORDERED_CLASSES)
         avail_subs = st.session_state.class_subjects.get(m_cls, [])
         m_sub = st.selectbox("Subject", avail_subs)
@@ -190,7 +168,6 @@ with tabs[0]:
         if st.button("Add Mapping"):
             st.session_state.temp_teacher_mappings.append({"class": m_cls, "subject": m_sub})
             
-        # Show Staged Mappings
         if st.session_state.temp_teacher_mappings:
             st.write("Current Assignments:")
             for i, m in enumerate(st.session_state.temp_teacher_mappings):
@@ -202,12 +179,12 @@ with tabs[0]:
                     "name": t_name,
                     "mappings": st.session_state.temp_teacher_mappings
                 })
-                st.session_state.temp_teacher_mappings = [] # Reset
+                st.session_state.temp_teacher_mappings = []
                 save_to_disk()
                 st.success(f"Saved {t_name}")
                 st.rerun()
             else:
-                st.error("Name and at least one subject mapping required.")
+                st.error("Name and at least one mapping required.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c2:
@@ -215,7 +192,6 @@ with tabs[0]:
         if st.session_state.teachers:
             for i, t in enumerate(st.session_state.teachers):
                 with st.expander(f"👤 {t['name']}"):
-                    # Format mappings for display
                     map_str = [f"{m['class']}: {m['subject']}" for m in t['mappings']]
                     st.write(" | ".join(map_str))
                     if st.button("Delete", key=f"del_t_{i}"):
@@ -243,24 +219,19 @@ with tabs[1]:
                 st.success(f"Added to {count} classes.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TAB 3: SCHEDULE (Auto-Scheduler) ---
+# --- TAB 3: SCHEDULE ---
 with tabs[2]:
     st.markdown("<div class='glass-container'><h3>Auto-Scheduler</h3>", unsafe_allow_html=True)
     
     with st.form("auto_sched"):
         start_date = st.date_input("Start Date")
         if st.form_submit_button("🚀 Generate Full Schedule"):
-            # Logic: Iterate dates, 1 exam per day per class
-            st.session_state.timetable = [] # Clear old
+            st.session_state.timetable = []
             curr_date = start_date
-            
-            # Find max number of subjects in any class to know how many days needed
             max_subs = max([len(v) for v in st.session_state.class_subjects.values()])
             
             for day_idx in range(max_subs):
-                # Skip Sunday? (Optional, skipping for now to keep logic simple)
                 exam_day = curr_date + timedelta(days=day_idx)
-                
                 for cls in ORDERED_CLASSES:
                     subs = st.session_state.class_subjects[cls]
                     if day_idx < len(subs):
@@ -277,13 +248,9 @@ with tabs[2]:
             
     st.markdown("</div>", unsafe_allow_html=True)
     
-    # Manual Edits
     if st.session_state.timetable:
-        st.markdown("<div class='glass-container'><h3>Manage Exams (Edit/Swap)</h3>", unsafe_allow_html=True)
-        # Filter by class
+        st.markdown("<div class='glass-container'><h3>Manage Exams</h3>", unsafe_allow_html=True)
         f_cls = st.selectbox("Filter Class", ["All"] + ORDERED_CLASSES)
-        
-        # Sort exams by date
         exams = sorted(st.session_state.timetable, key=lambda x: x['date'])
         
         for ex in exams:
@@ -295,7 +262,6 @@ with tabs[2]:
                     new_date = st.date_input("Date", pd.to_datetime(ex['date']), key=f"d_{ex['id']}")
                 with c2:
                     curr_subs = st.session_state.class_subjects[ex['class']]
-                    # Handle case where subject might have been deleted from global list
                     idx = curr_subs.index(ex['subject']) if ex['subject'] in curr_subs else 0
                     new_sub = st.selectbox("Subject", curr_subs, index=idx, key=f"s_{ex['id']}")
                 with c3:
@@ -304,9 +270,7 @@ with tabs[2]:
                     if st.button("Update", key=f"up_{ex['id']}"):
                         ex['date'] = str(new_date)
                         ex['subject'] = new_sub
-                        # Update ID to avoid duplicates logic issues later
                         ex['id'] = f"{new_date}_{ex['class']}_Morning"
-                        # Reset allocation
                         if ex['id'] in st.session_state.allocations:
                             del st.session_state.allocations[ex['id']]
                         save_to_disk()
@@ -317,7 +281,7 @@ with tabs[2]:
                         st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- TAB 4: ALLOCATION (Smart Logic) ---
+# --- TAB 4: ALLOCATION ---
 with tabs[3]:
     st.markdown("<div class='glass-container'><h3>Invigilation Allocation</h3></div>", unsafe_allow_html=True)
     
@@ -327,14 +291,11 @@ with tabs[3]:
     for exam in st.session_state.timetable:
         eid = exam['id']
         
-        # Auto-init allocation structure
         if eid not in st.session_state.allocations:
             prim, back = find_smart_invigilators(exam['class'], exam['subject'], eid)
-            # Shuffle
             random.shuffle(prim)
             random.shuffle(back)
             
-            # Revision teacher: Must teach that subject to that class
             rev_cands = []
             for t in st.session_state.teachers:
                 for m in t['mappings']:
@@ -351,7 +312,6 @@ with tabs[3]:
         with st.expander(f"{exam['date']} | {exam['class']} | {exam['subject']}", expanded=True):
             rc, ic = st.columns(2)
             
-            # Revision
             with rc:
                 st.markdown(f"#### 📖 Revision ({exam['rev_p']})")
                 if alloc['confirmed_rev']:
@@ -363,7 +323,7 @@ with tabs[3]:
                 else:
                     pool = alloc['rev_pool']
                     if pool:
-                        cand = pool[0] # Take first valid subject teacher
+                        cand = pool[0]
                         st.info(f"Draft: **{cand}**")
                         if st.button("Confirm", key=f"cf_r_{eid}"):
                             alloc['confirmed_rev'] = cand
@@ -377,7 +337,6 @@ with tabs[3]:
                             save_to_disk()
                             st.rerun()
 
-            # Invigilation
             with ic:
                 st.markdown(f"#### 📝 Invigilation ({exam['exam_p']})")
                 if alloc['confirmed_inv']:
@@ -409,12 +368,11 @@ with tabs[3]:
                             save_to_disk()
                             st.rerun()
 
-# --- TAB 5: TIMETABLE (Date-Wise) ---
+# --- TAB 5: TIMETABLE ---
 with tabs[4]:
     st.markdown("<div class='glass-container'><h3>🗓️ Date-wise Timetable</h3></div>", unsafe_allow_html=True)
     
     if st.session_state.timetable:
-        # Group by Date
         df = pd.DataFrame(st.session_state.timetable)
         dates = sorted(df['date'].unique())
         
@@ -422,7 +380,6 @@ with tabs[4]:
             st.markdown(f"### {d}")
             day_exams = df[df['date'] == d]
             
-            # Create a table for this day
             table_rows = []
             for _, ex in day_exams.iterrows():
                 alloc = st.session_state.allocations.get(ex['id'], {})
@@ -437,7 +394,6 @@ with tabs[4]:
                 })
             
             day_df = pd.DataFrame(table_rows)
-            # Sort by Class order
             day_df['Class'] = pd.Categorical(day_df['Class'], categories=ORDERED_CLASSES, ordered=True)
             day_df = day_df.sort_values('Class')
             
